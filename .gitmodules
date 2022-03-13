@@ -1,0 +1,9 @@
+[submodule "components/Adafruit_BusIO"]
+	path = components/Adafruit_BusIO
+	url = https://github.com/adafruit/Adafruit_BusIO.git
+[submodule "components/Adafruit_Motor_Shield_V2_Library_wrapper/Adafruit_Motor_Shield_V2_Library"]
+	path = components/Adafruit_Motor_Shield_V2_Library_wrapper/Adafruit_Motor_Shield_V2_Library
+	url = https://github.com/adafruit/Adafruit_Motor_Shield_V2_Library.git
+[submodule "components/arduino"]
+	path = components/arduino
+	url = https://github.com/espressif/arduino-esp32.git
