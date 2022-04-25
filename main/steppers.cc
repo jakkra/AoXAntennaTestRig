@@ -92,11 +92,9 @@ extern "C" void steppers_go_to_tilt_angle(int angle, bool blocking) {
 
 extern "C" void steppers_set_enabled(bool enable) {
     if (enable) {
-        printf("enable\n");
         tilt_stepper.stepper->enableOutputs();
         rotate_stepper.stepper->enableOutputs();
     } else {
-        printf("Disable\n");
         tilt_stepper.stepper->disableOutputs();
         rotate_stepper.stepper->disableOutputs();
     }
