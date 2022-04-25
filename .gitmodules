@@ -1,9 +1,9 @@
-[submodule "components/Adafruit_BusIO"]
-	path = components/Adafruit_BusIO
-	url = https://github.com/adafruit/Adafruit_BusIO.git
-[submodule "components/Adafruit_Motor_Shield_V2_Library_wrapper/Adafruit_Motor_Shield_V2_Library"]
-	path = components/Adafruit_Motor_Shield_V2_Library_wrapper/Adafruit_Motor_Shield_V2_Library
-	url = https://github.com/adafruit/Adafruit_Motor_Shield_V2_Library.git
 [submodule "components/arduino"]
 	path = components/arduino
 	url = https://github.com/espressif/arduino-esp32.git
+[submodule "components/esp32-wifi-manager"]
+	path = components/esp32-wifi-manager
+	url = https://github.com/tonyp7/esp32-wifi-manager.git
+[submodule "components/FastAccelStepper"]
+	path = components/FastAccelStepper
+	url = https://github.com/gin66/FastAccelStepper

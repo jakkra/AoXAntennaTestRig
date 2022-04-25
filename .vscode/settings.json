@@ -1,0 +1,24 @@
+{
+    "idf.portWin": "COM42",
+    "idf.flashType": "UART",
+    "idf.adapterTargetName": "esp32",
+    "files.associations": {
+        "algorithm": "cpp",
+        "chrono": "cpp",
+        "format": "cpp",
+        "forward_list": "cpp",
+        "functional": "cpp",
+        "iterator": "cpp",
+        "list": "cpp",
+        "memory": "cpp",
+        "regex": "cpp",
+        "vector": "cpp",
+        "xhash": "cpp",
+        "xmemory": "cpp",
+        "xstring": "cpp",
+        "xtree": "cpp",
+        "xutility": "cpp",
+        "ios": "cpp",
+        "array": "c"
+    }
+}
