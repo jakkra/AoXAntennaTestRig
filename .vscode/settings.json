@@ -1,5 +1,5 @@
 {
-    "idf.portWin": "COM42",
+    "idf.portWin": "COM33",
     "idf.flashType": "UART",
     "idf.adapterTargetName": "esp32",
     "files.associations": {

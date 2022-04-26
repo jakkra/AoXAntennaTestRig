@@ -76,7 +76,7 @@ void webserver_start(void)
     assert(err == ESP_OK);
 
     server.running = true;
-    ESP_LOGI(TAG, "Web Server started on port %d, server handle %p", config.server_port, server.handle);    
+    ESP_LOGI(TAG, "Web Server started on port %d, server handle %p", config.server_port, server.handle);
 }
 
 esp_err_t webserver_ws_send(uint8_t* payload, uint32_t len) {
@@ -145,7 +145,7 @@ static esp_err_t ws_handler(httpd_req_t *req)
         ESP_LOGI(TAG, "Handshake done, the new connection was opened");
         return ESP_OK;
     }
-    
+
     memset(&packet, 0, sizeof(httpd_ws_frame_t));
     packet.payload = buf;
 
@@ -168,6 +168,6 @@ static esp_err_t ws_handler(httpd_req_t *req)
     } else if (packet.type == HTTPD_WS_TYPE_BINARY) {
         ESP_LOGE(TAG, "HTTPD_WS_TYPE_BINARY unhandled");
     }
-   
+
     return ESP_OK;
 }

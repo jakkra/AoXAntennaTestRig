@@ -14,7 +14,7 @@
 #include "web_server.h"
 #include "steppers.h"
 
-const char* TAG = "main"; 
+const char* TAG = "main";
 
 #define MAX_WS_CMD_LEN  100
 #define UART_BUF_SIZE (1024)
@@ -138,7 +138,7 @@ static void handle_set_tilt_cmd(uint8_t* data, uint32_t len, command_output_func
     int32_t tilt;
 
     tilt = strtol((char*)data, &end_ptr, 10);
-    
+
     ESP_LOGW(TAG, "handle_set_tilt_cmd %d", tilt);
     steppers_go_to_tilt_angle(tilt, true);
 
@@ -163,6 +163,7 @@ static void uart_cmd_output(char* data)
     uart_write_bytes(UART_NUM_1, "\r\n", 2);
     uart_write_bytes(UART_NUM_1, (const char *)data, strlen(data));
     uart_write_bytes(UART_NUM_1, "\r\n", 2);
+    printf("Sent\n");
 }
 
 static void echo_task(void *arg)
