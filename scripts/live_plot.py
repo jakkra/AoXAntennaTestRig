@@ -85,12 +85,12 @@ class LivePlot:
             self.elev_plt.tick_params(axis="x", colors="white")
             self.elev_plt.tick_params(axis="y", colors="white")
 
-            (self.elevation_line,) = self.azim_plt.plot([], lw=2, color="#ffd792")
-            (self.azimuth_line,) = self.elev_plt.plot([], lw=2, color="#f98941")
+            (self.azimuth_line,) = self.azim_plt.plot([], lw=2, color="#ffd792")
+            (self.elevation_line,) = self.elev_plt.plot([], lw=2, color="#f98941")
 
             self.azim_plt.set_transform(self.azim_plt.transAxes)
             self.elev_plt.set_transform(self.elev_plt.transAxes)
-            self.text_elev = self.azim_plt.text(
+            self.text_azim = self.azim_plt.text(
                 0.01,
                 0.95,
                 "",
@@ -100,7 +100,7 @@ class LivePlot:
                 size=11,
                 transform=self.azim_plt.transAxes,
             )
-            self.text_azim = self.elev_plt.text(
+            self.text_elev = self.elev_plt.text(
                 0.01,
                 0.95,
                 "",
@@ -164,8 +164,8 @@ class LivePlot:
             )
 
             # redraw just the points
-            self.azim_plt.draw_artist(self.elevation_line)
-            self.elev_plt.draw_artist(self.azimuth_line)
+            self.elev_plt.draw_artist(self.elevation_line)
+            self.azim_plt.draw_artist(self.azimuth_line)
             self.azim_plt.draw_artist(self.text_azim)
             self.elev_plt.draw_artist(self.text_elev)
             self.azim_plt.draw_artist(self.azim_gt_line)

@@ -1,5 +1,8 @@
 import argparse, sys, time
 from serial_helpers import open_port, close_port, send_command_and_wait_rsp, read_line
+from matplotlib import pyplot as plt
+import numpy as np
+
 from live_plot import LivePlot
 
 
@@ -87,8 +90,8 @@ class AoATester:
                 # TODO Actual ground truth is not same for all tags, handle that here, for now assume all at same spot.
                 graph.add_tag_sample(
                     tag_instance_id,
-                    urc_dict["angleH"],
-                    urc_dict["angleV"],
+                    urc_dict["azimuth"],
+                    urc_dict["elevation"],
                     self.azimuth_angle,
                     self.tilt_angle,
                 )
@@ -114,19 +117,74 @@ class AoATester:
         urc_dict = {
             "instanceId": instanceId,
             "rssi": int(urc_params[1]),
-            "angleH": int(urc_params[2]),
-            "angleV": int(urc_params[3]),
+            "azimuth": int(urc_params[2]),
+            "elevation": int(urc_params[3]),
             "rssi2": int(urc_params[4]),
             "channel": int(urc_params[5]),
             "anchor_id": urc_params[6].replace('"', ""),
             "user_defined_str": urc_params[7].replace('"', ""),
             "timestamp_ms": int(urc_params[8]),
+            # Also input the ground truth, might be useful later
+            "azimuth_gt": self.azimuth_angle,
+            "elevation_gt": self.tilt_angle
         }
         return urc_dict
 
     def current_milli_time(self):
         return round(time.time() * 1000)
+    
+    def save_collected_data(self):
+        for key, log in self.collected_data.items():
+            with open('{}_{}.log'.format(key[0], key[1]), "w") as data_file:
+                for line in log[0]:
+                    data_file.write(line + '\n')
 
+    def create_cdf(self):
+        tags_errors = {}
+        # gt_key is a tuple (azimuth_gt, elevation_gt)
+        for gt_key, logs_from_location in self.collected_data.items():
+            # For each sample in location
+            for tag_id, urcs in logs_from_location[1].items():
+                tags_errors[tag_id] = {
+                    'azimuth_errors': list(map(lambda urc: abs(urc['azimuth'] - urc['azimuth_gt']), urcs)),
+                    'elevation_errors': list(map(lambda urc: abs(urc['elevation'] - urc['elevation_gt']), urcs))
+                }
+            plot_num = 1
+            fig = plt.figure(figsize=(12, 10))
+            fig.patch.set_facecolor("#65494c")
+            fig.subplots_adjust(wspace=0.09)
+            plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, hspace=0.4)
+            
+            for tag_id, errors in tags_errors.items():
+                plt.subplot(6,2,plot_num)
+                # evaluate the histogram
+                values, base = np.histogram(errors['azimuth_errors'], range=[0, max(90, np.max(errors['azimuth_errors']))])
+                #evaluate the cumulative
+                cumulative = np.cumsum(values)
+                cdf = (np.cumsum(values)/len(errors['azimuth_errors']))
+                plt.title('{} Azimuth'.format(tag_id))
+                plt.axvline(x=10)
+                plt.xlabel('Angle error', {'color': 'white'})
+                plt.ylabel('Percent', {'color': 'white'})
+                # plot the cumulative function
+                plot_num = plot_num + 1
+                plt.plot(base[:-1], cdf, c='blue')
+
+                plt.subplot(6,2,plot_num)
+                plt.title('{} Elevation'.format(tag_id))
+                # evaluate the histogram
+                values, base = np.histogram(errors['elevation_errors'], range=[0, max(90, np.max(errors['elevation_errors']))])
+                #evaluate the cumulative
+                cumulative = np.cumsum(values)
+                cdf = (np.cumsum(values)/len(errors['elevation_errors']))
+                plt.title('{} Elevation'.format(tag_id))
+                plt.axvline(x=10)
+                plt.xlabel('Angle error', {'color': 'white'})
+                # plot the cumulative function
+                plt.plot(base[:-1], cdf, c='green')
+                plot_num = plot_num + 1
+
+            plt.show()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AoA Analyzer")
@@ -170,3 +228,9 @@ if __name__ == "__main__":
     tester.collect_angles(15000, True)
     tester.rotate_antenna(45)
     tester.collect_angles(15000, True)
+    tester.rotate_antenna(-90)
+    tester.collect_angles(15000, True)
+    tester.rotate_antenna(45) # Go back home to 0, 0
+    tester.save_collected_data()
+    tester.create_cdf()
+    print('Finished')
