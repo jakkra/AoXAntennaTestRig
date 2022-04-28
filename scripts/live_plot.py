@@ -4,14 +4,21 @@ import numpy as np
 
 
 class LivePlot:
-    def __init__(self):
+    def __init__(self, figsize, antenna_azimuth, antenna_tilt):
         self.plot_hist_length = 100
         plt.rcParams.update({"text.color": "white"})
         self.x = np.linspace(0, self.plot_hist_length)
         self.X, self.Y = np.meshgrid(self.x, self.x)
-        self.fig = plt.figure(figsize=(12, 10))
+        self.fig = plt.figure(figsize=figsize)
         self.fig.patch.set_facecolor("#65494c")
         self.fig.subplots_adjust(wspace=0.09)
+        plt.gcf().text(
+            0.40,
+            0.99,
+            "Ground truth ({}, {})".format(antenna_azimuth, antenna_tilt),
+            va="top",
+            fontsize=18,
+        )
         # Adjust the padding around all subplots
         plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, hspace=0.4)
         self.tags = {}
@@ -44,19 +51,32 @@ class LivePlot:
                 elevation_gt,
             )
             self.fig.canvas.draw()
-        stats_text = 'TAG\t\t\tMean Azimuth (err)\tMean Elevation (err)\tNum Angles\n'.expandtabs()
-        stats_text = stats_text + '-' * 100 + '\n'
+        stats_text = "TAG\t\t\tMean Azimuth (err)\tMean Elevation (err)\tNum Angles\n".expandtabs()
+        stats_text = stats_text + "-" * 100 + "\n"
         for id, tag in self.tags.items():
             azim_data = tag.get_azimuth_data()
             elev_data = tag.get_elevation_data()
-            stats_text = stats_text + '{}\t{:.2f}({:.2f})\t\t{:.2f}({:.2f})\t\t\t{}\n'.format(id, round(np.mean(azim_data),2), round(abs(np.mean(azim_data) - azimith_gt), 2), round(np.mean(elev_data), 2), round(abs(np.mean(elev_data) - elevation_gt), 2), len(azim_data)).expandtabs()
+            stats_text = (
+                stats_text
+                + "{}\t{:.2f}({:.2f})\t\t{:.2f}({:.2f})\t\t\t{}\n".format(
+                    id,
+                    round(np.mean(azim_data), 2),
+                    round(abs(np.mean(azim_data) - azimith_gt), 2),
+                    round(np.mean(elev_data), 2),
+                    round(abs(np.mean(elev_data) - elevation_gt), 2),
+                    len(azim_data),
+                ).expandtabs()
+            )
         self.fig.canvas.restore_region(self.stats_pltbackground),
-        self.text_stats.set_text(
-            stats_text
-        )
+        self.text_stats.set_text(stats_text)
         self.stats_plt.draw_artist(self.text_stats)
         self.fig.canvas.blit(self.stats_plt.bbox)
         self.tags[tag_id].add_data(azimuth, elevation)
+
+    def save_snapshot_png(self, name):
+        filename = "{}.png".format(name)
+        plt.savefig(filename)
+        return filename
 
     def destroy(self):
         plt.close()
@@ -75,7 +95,9 @@ class LivePlot:
             self.azim_plt = self.fig.add_subplot(
                 6, 2, index * 2 + 1, title="Azimuth {0} ".format(id)
             )
-            self.elev_plt = self.fig.add_subplot(6, 2, index * 2 + 2, title="Elevation")
+            self.elev_plt = self.fig.add_subplot(
+                6, 2, index * 2 + 2, title="Elevation {0} ".format(id)
+            )
 
             self.azim_plt.set_facecolor("#65494c")
             self.azim_plt.tick_params(axis="x", colors="white")
@@ -139,9 +161,12 @@ class LivePlot:
                 color="#99ff66",
             )
 
-            self.azim_plt_background = self.fig.canvas.copy_from_bbox(self.azim_plt.bbox)
-            self.elev_plt_background = self.fig.canvas.copy_from_bbox(self.elev_plt.bbox)
-
+            self.azim_plt_background = self.fig.canvas.copy_from_bbox(
+                self.azim_plt.bbox
+            )
+            self.elev_plt_background = self.fig.canvas.copy_from_bbox(
+                self.elev_plt.bbox
+            )
 
         def add_data(self, azimuth, elevation):
             self.azimuth.append(azimuth)
@@ -154,7 +179,6 @@ class LivePlot:
             # restore background
             self.fig.canvas.restore_region(self.azim_plt_background)
             self.fig.canvas.restore_region(self.elev_plt_background)
-
 
             self.text_azim.set_text(
                 "{} => err: {}".format(azimuth, abs(self.azimith_gt - azimuth))
@@ -175,7 +199,6 @@ class LivePlot:
             self.fig.canvas.blit(self.azim_plt.bbox)
             self.fig.canvas.blit(self.elev_plt.bbox)
 
-
             # in this post http://bastibe.de/2013-05-30-speeding-up-matplotlib.html
             # it is mentionned that blit causes strong memory leakage.
             # however, I did not observe that.
@@ -191,11 +214,3 @@ class LivePlot:
 
         def get_elevation_data(self):
             return self.elevation
-
-
-if __name__ == "__main__":
-    plot = LivePlot()  # 175 fps
-    for i in np.arange(0, 90):
-        plot.add_tag_sample("TAG_1", i, 0, 0)
-
-    plot.destroy()
