@@ -121,7 +121,7 @@ class AoATester:
                     self.get_gt_elevation(tag_id),
                 )
         img = graph.save_snapshot_png(
-            "{}-{}".format(self.azimuth_angle, self.tilt_angle)
+            "{}_{}".format(self.azimuth_angle, self.tilt_angle)
         )
         self.created_images.append(img)
         graph.destroy()
@@ -168,28 +168,60 @@ class AoATester:
                     data_file.write(line + "\n")
 
     def create_cdf(self, show_cdfs=True):
+        def create_and_style_cdf(data, title):
+            print(data)
+            cdf_color = "green"
+            if sum(i <= 10 for i in data) / len(data) < 0.9:
+                cdf_color = "red"
+
+            bins = range(min(data), max(data) + 1, 1)  # Equally distributed
+            plt.hist(
+                data,
+                bins=bins,
+                density=True,
+                cumulative=True,
+                label="CDF",
+                histtype="bar",
+                alpha=0.9,
+                color=cdf_color,
+            )
+            plt.title(title)
+            plt.axvline(x=10)
+            plt.xlabel("Angle error", {"color": "white"})
+            plt.ylabel("Percent", {"color": "white"})
+            plt.gca().set_xlim(0)
+            plt.gca().set_ylim(0, 1)
+            plt.gca().xaxis.label.set_color("white")
+            plt.gca().yaxis.label.set_color("white")
+            plt.gca().tick_params(axis="x", colors="white")
+            plt.gca().tick_params(axis="y", colors="white")
+            plt.gca().grid(alpha=0.4, color="#212F3D")
+
         tags_errors = {}
+        all_errors_phi = []
+        all_errors_theta = []
         # gt_key is a tuple (azimuth_gt, elevation_gt)
         for gt_key, logs_from_location in self.collected_data.items():
             # For each sample in location
             for tag_id, urcs in logs_from_location[1].items():
+                azimuth_error = list(
+                    map(lambda urc: abs(urc["azimuth"] - urc["azimuth_gt"]), urcs)
+                )
+                theta_error = list(
+                    map(lambda urc: abs(urc["elevation"] - urc["elevation_gt"]), urcs)
+                )
+                all_errors_phi = all_errors_phi + azimuth_error
+                all_errors_theta = all_errors_theta + theta_error
                 tags_errors[tag_id] = {
-                    "azimuth_errors": list(
-                        map(lambda urc: abs(urc["azimuth"] - urc["azimuth_gt"]), urcs)
-                    ),
-                    "elevation_errors": list(
-                        map(
-                            lambda urc: abs(urc["elevation"] - urc["elevation_gt"]),
-                            urcs,
-                        )
-                    ),
+                    "azimuth_errors": azimuth_error,
+                    "elevation_errors": theta_error,
                 }
             plot_num = 1
             fig = plt.figure(figsize=self.figsize)
             fig.patch.set_facecolor("#202124")
-            fig.subplots_adjust(wspace=0.09)
+            fig.subplots_adjust(wspace=0.15)
             plt.subplots_adjust(
-                left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.4
+                left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.7
             )
             plt.gcf().text(
                 0.40,
@@ -199,48 +231,46 @@ class AoATester:
                 fontsize=22,
             )
 
-            def create_and_style_cdf(data, name):
-                cdf_color = "green"
-                if sum(i <= 10 for i in data) / len(data) < 0.9:
-                    cdf_color = "red"
-
-                bins = range(min(data), max(data) + 1, 1)  # Equally distributed
-                plt.hist(
-                    data,
-                    bins=bins,
-                    density=True,
-                    cumulative=True,
-                    label="CDF",
-                    histtype="bar",
-                    alpha=0.9,
-                    color=cdf_color,
-                )
-                plt.title("{} {}".format(tag_id, name))
-                plt.axvline(x=10)
-                plt.xlabel("Angle error", {"color": "white"})
-                plt.ylabel("Percent", {"color": "white"})
-                plt.gca().set_xlim(0)
-                plt.gca().set_ylim(0, 1)
-                plt.gca().xaxis.label.set_color("white")
-                plt.gca().yaxis.label.set_color("white")
-                plt.gca().tick_params(axis="x", colors="white")
-                plt.gca().tick_params(axis="y", colors="white")
-                plt.gca().grid(alpha=0.4, color="#212F3D")
-
             for tag_id, errors in tags_errors.items():
                 plt.subplot(6, 2, plot_num)
-                create_and_style_cdf(errors["azimuth_errors"], "Azimuth")
+                create_and_style_cdf(
+                    errors["azimuth_errors"], "Azimuth {}".format(tag_id)
+                )
                 plot_num = plot_num + 1
 
                 plt.subplot(6, 2, plot_num)
-                create_and_style_cdf(errors["elevation_errors"], "Elevation")
+                create_and_style_cdf(
+                    errors["elevation_errors"], "Elevation {}".format(tag_id)
+                )
                 plot_num = plot_num + 1
 
-            img_name = "{}-{}_cdf.png".format(gt_key[0], gt_key[1])
+            img_name = "{}_{}_cdf.png".format(gt_key[0], gt_key[1])
             self.created_images.append(img_name)
             plt.savefig(img_name)
             if show_cdfs:
                 plt.show()
+            else:
+                plt.clf()
+                plt.close()
+
+        fig = plt.figure(figsize=self.figsize)
+        fig.patch.set_facecolor("#202124")
+        fig.subplots_adjust(wspace=0.3)
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.4)
+        plt.gcf().text(
+            0.40,
+            0.99,
+            "Ground truth ({}, {})".format(gt_key[0], gt_key[1]),
+            va="top",
+            fontsize=22,
+        )
+        plt.subplot(2, 1, 1)
+        create_and_style_cdf(all_errors_phi, "For all tags azimuth")
+        plt.subplot(2, 1, 2)
+        create_and_style_cdf(all_errors_theta, "For all tags theta")
+        plt.savefig("cdf_all_tags.png")
+        self.created_images.append("cdf_all_tags.png")
+        plt.show()
 
     def create_pdf_report(self, name):
         pdf = FPDF()
@@ -299,9 +329,9 @@ if __name__ == "__main__":
     tester.start()
     tester.enable_antenna_control()
     # Note must be in even dividable steps
-    start_angle = -60
-    end_angle = 60
-    steps = 10
+    start_angle = -40
+    end_angle = 40
+    steps = 20
 
     tester.rotate_antenna(start_angle)
 
@@ -313,7 +343,7 @@ if __name__ == "__main__":
                     tester.get_antenna_location()[0], tester.get_antenna_location()[1]
                 )
             )
-            tester.collect_angles(2000, True)
+            tester.collect_angles(15000, True)
             tester.tilt_antenna(steps)
         tester.tilt_antenna(start_angle - steps)
         tester.rotate_antenna(steps)
@@ -322,7 +352,7 @@ if __name__ == "__main__":
 
     tester.disable_antenna_control()
     tester.save_collected_data()
-    tester.create_cdf(False)
+    tester.create_cdf(True)
 
     now = datetime.now()  # current date and time
     date_time = now.strftime("%d_%m_%Y-%H-%M")
