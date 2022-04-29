@@ -169,7 +169,6 @@ class AoATester:
 
     def create_cdf(self, show_cdfs=True):
         def create_and_style_cdf(data, title):
-            print(data)
             cdf_color = "green"
             if sum(i <= 10 for i in data) / len(data) < 0.9:
                 cdf_color = "red"
@@ -260,7 +259,7 @@ class AoATester:
         plt.gcf().text(
             0.40,
             0.99,
-            "Ground truth ({}, {})".format(gt_key[0], gt_key[1]),
+            "All tags and positions combined CDF",
             va="top",
             fontsize=22,
         )
@@ -343,7 +342,7 @@ if __name__ == "__main__":
                     tester.get_antenna_location()[0], tester.get_antenna_location()[1]
                 )
             )
-            tester.collect_angles(15000, True)
+            tester.collect_angles(10000, True)
             tester.tilt_antenna(steps)
         tester.tilt_antenna(start_angle - steps)
         tester.rotate_antenna(steps)
@@ -352,7 +351,7 @@ if __name__ == "__main__":
 
     tester.disable_antenna_control()
     tester.save_collected_data()
-    tester.create_cdf(True)
+    tester.create_cdf(False)
 
     now = datetime.now()  # current date and time
     date_time = now.strftime("%d_%m_%Y-%H-%M")
