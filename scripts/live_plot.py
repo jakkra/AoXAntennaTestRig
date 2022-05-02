@@ -51,6 +51,9 @@ class LivePlot:
                 elevation_gt,
             )
             self.fig.canvas.draw()
+
+        self.tags[tag_id].add_data(azimuth, elevation)
+
         stats_text = "TAG\t\t\tMean Azimuth (err)\tMean Elevation (err)\tNum Angles\n".expandtabs()
         stats_text = stats_text + "-" * 100 + "\n"
         for id, tag in self.tags.items():
@@ -71,7 +74,6 @@ class LivePlot:
         self.text_stats.set_text(stats_text)
         self.stats_plt.draw_artist(self.text_stats)
         self.fig.canvas.blit(self.stats_plt.bbox)
-        self.tags[tag_id].add_data(azimuth, elevation)
 
     def save_snapshot_png(self, name):
         filename = "{}.png".format(name)

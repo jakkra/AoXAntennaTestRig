@@ -17,9 +17,6 @@ class AntennaController:
     def start(self):
         self.ser_controller = open_port(self.port, self.baudrate)
 
-        # Turn off everything while also checking that communication is working
-        self.disable_antenna_control()
-
     def enable_antenna_control(self):
         res = send_command_and_wait_rsp(self.ser_controller, "ENABLE=1")
         if res == -1:

@@ -5,6 +5,9 @@ import numpy as np
 from datetime import datetime
 from fpdf import FPDF
 import os
+from antenna_controller import AntennaController
+from aoa_controller import AoAController
+
 
 from live_plot import LivePlot
 
@@ -12,18 +15,14 @@ from live_plot import LivePlot
 class AoATester:
     def __init__(
         self,
-        controller_port,
-        controller_baudrate,
         locate_port,
         locate_baudrate,
         locate_ctsrts,
         antenna_upside_down=False,
     ):
-        self.controller_port = controller_port
-        self.controller_baudrate = controller_baudrate
-        self.locate_port = locate_port
-        self.locate_baudrate = locate_baudrate
-        self.locate_ctsrts = locate_ctsrts
+        self.locate_controller = AoAController(
+            locate_port, locate_baudrate, locate_ctsrts
+        )
         self.antenna_upside_down = antenna_upside_down
 
         # We assume antenna tester is homed and at 0,0
@@ -36,41 +35,7 @@ class AoATester:
         self.created_images = []
 
     def start(self):
-        self.ser_controller = open_port(self.controller_port, self.controller_baudrate)
-        self.ser_locate = open_port(
-            self.locate_port, self.locate_baudrate, self.locate_ctsrts
-        )
-
-        # Turn off everything while also checking that communication is working
-        controller_ok = send_command_and_wait_rsp(ser_controller, "ENABLE=0")
-        locate_ok = send_command_and_wait_rsp(ser_locate, "AT+UDFENABLE=0")
-
-        if controller_ok == -1:
-            raise TimeoutError("Failed communcate with Antenna controller")
-        if locate_ok == -1:
-            raise TimeoutError("Failed communcate with u-connectLocate")
-
-    def enable_antenna_control(self):
-        res = send_command_and_wait_rsp(ser_controller, "ENABLE=1")
-        if res == -1:
-            raise Exception("Failed enabling antenna!")
-
-    def disable_antenna_control(self):
-        res = send_command_and_wait_rsp(ser_controller, "ENABLE=0")
-        if res == -1:
-            raise Exception("Failed disable antenna!")
-
-    def rotate_antenna(self, degree):
-        res = send_command_and_wait_rsp(ser_controller, "AZIMUTH={}".format(degree), 10)
-        if res == -1:
-            raise Exception("Failed rotating antenna!")
-        self.azimuth_angle = self.azimuth_angle + degree
-
-    def tilt_antenna(self, degree):
-        res = send_command_and_wait_rsp(ser_controller, "TILT={}".format(degree), 10)
-        if res == -1:
-            raise Exception("Failed rotating antenna!")
-        self.tilt_angle = self.tilt_angle + degree
+        self.locate_controller.start()
 
     # TODO if we want differnt GT for each tag
     def get_gt_azimuth(self, tag_id):
@@ -86,8 +51,7 @@ class AoATester:
             return self.tilt_angle
 
     def collect_angles(self, timeout_ms, do_plot=False):
-        resp = send_command_and_wait_rsp(ser_locate, "AT+UDFENABLE=1", 10)
-        assert resp != -1
+        self.locate_controller.enable_aoa()
         graph = None
         if do_plot:
             graph = LivePlot(self.figsize, self.azimuth_angle, self.tilt_angle)
@@ -96,7 +60,7 @@ class AoATester:
         raw_result = []
         parsed_result = {}
         while self.current_milli_time() < startTime + timeout_ms:
-            urc = read_line(ser_locate)
+            urc = self.locate_controller.wait_for_uudf()
             if len(urc) > 0:
                 if "+STARTUP" in urc:
                     raise Exception("Module crash detected")
@@ -285,9 +249,6 @@ class AoATester:
         for img in self.created_images:
             os.remove(img)
 
-    def get_antenna_location(self):
-        return (self.azimuth_angle, self.tilt_angle)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AoA Analyzer")
@@ -314,42 +275,44 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    ser_controller = open_port(args.controller_port, args.controller_baudrate)
-    ser_locate = open_port(args.locate_port, args.locate_baudrate, args.ctsrts)
+    antenna_controller = AntennaController(
+        args.controller_port, args.controller_baudrate
+    )
+    antenna_controller.start()
+    antenna_controller.enable_antenna_control()
 
     tester = AoATester(
-        args.controller_port,
-        args.controller_baudrate,
         args.locate_port,
         args.locate_baudrate,
         args.ctsrts,
     )
+
     print("Successfuly set up communication")
     tester.start()
-    tester.enable_antenna_control()
     # Note must be in even dividable steps
     start_angle = -40
     end_angle = 40
     steps = 20
 
-    tester.rotate_antenna(start_angle)
+    antenna_controller.rotate_antenna(start_angle)
 
     for azimuth_angle in range(start_angle, end_angle + 1, steps):
-        tester.tilt_antenna(start_angle)
+        antenna_controller.tilt_antenna(start_angle)
         for tilt_angle in range(start_angle, end_angle + 1, steps):
             print(
                 "Sample azimuth: {}, tilt: {}".format(
-                    tester.get_antenna_location()[0], tester.get_antenna_location()[1]
+                    antenna_controller.get_antenna_location()[0],
+                    antenna_controller.get_antenna_location()[1],
                 )
             )
             tester.collect_angles(10000, True)
-            tester.tilt_antenna(steps)
-        tester.tilt_antenna(start_angle - steps)
-        tester.rotate_antenna(steps)
+            antenna_controller.tilt_antenna(steps)
+        antenna_controller.tilt_antenna(start_angle - steps)
+        antenna_controller.rotate_antenna(steps)
 
-    tester.rotate_antenna(start_angle - steps)
+    antenna_controller.rotate_antenna(start_angle - steps)
 
-    tester.disable_antenna_control()
+    antenna_controller.disable_antenna_control()
     tester.save_collected_data()
     tester.create_cdf(False)
 
