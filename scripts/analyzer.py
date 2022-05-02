@@ -37,24 +37,11 @@ class AoATester:
     def start(self):
         self.locate_controller.start()
 
-    # TODO if we want differnt GT for each tag
-    def get_gt_azimuth(self, tag_id):
-        if self.antenna_upside_down:
-            return -self.azimuth_angle
-        else:
-            return self.azimuth_angle
-
-    def get_gt_elevation(self, tag_id):
-        if self.antenna_upside_down:
-            return -self.tilt_angle
-        else:
-            return self.tilt_angle
-
-    def collect_angles(self, timeout_ms, do_plot=False):
+    def collect_angles(self, timeout_ms, do_plot, gt_azimuth, gt_elevation):
         self.locate_controller.enable_aoa()
         graph = None
         if do_plot:
-            graph = LivePlot(self.figsize, self.azimuth_angle, self.tilt_angle)
+            graph = LivePlot(self.figsize, gt_azimuth, gt_elevation)
 
         startTime = self.current_milli_time()
         raw_result = []
@@ -76,21 +63,22 @@ class AoATester:
                     parsed_result[tag_id] = []
                     parsed_result[tag_id].append(urc_dict)
 
-                # TODO Actual ground truth is not same for all tags, handle that here, for now assume all at same spot.
                 graph.add_tag_sample(
                     tag_id,
-                    urc_dict["azimuth"],
-                    urc_dict["elevation"],
-                    self.get_gt_azimuth(tag_id),
-                    self.get_gt_elevation(tag_id),
+                    urc_dict["azimuth"]
+                    if not self.antenna_upside_down
+                    else -urc_dict["azimuth"],
+                    urc_dict["elevation"]
+                    if not self.antenna_upside_down
+                    else -urc_dict["elevation"],
+                    gt_azimuth,
+                    gt_elevation,
                 )
-        img = graph.save_snapshot_png(
-            "{}_{}".format(self.azimuth_angle, self.tilt_angle)
-        )
+        img = graph.save_snapshot_png("{}_{}".format(gt_azimuth, gt_elevation))
         self.created_images.append(img)
         graph.destroy()
         # Save the result in a map with a tuple of azimuth and tilt as key
-        self.collected_data[(self.azimuth_angle, self.tilt_angle)] = (
+        self.collected_data[(gt_azimuth, gt_elevation)] = (
             raw_result,
             parsed_result,
         )
@@ -116,9 +104,6 @@ class AoATester:
             "anchor_id": urc_params[6].replace('"', ""),
             "user_defined_str": urc_params[7].replace('"', ""),
             "timestamp_ms": int(urc_params[8]),
-            # Also input the ground truth, might be useful later
-            "azimuth_gt": self.get_gt_azimuth(instanceId),
-            "elevation_gt": self.get_gt_elevation(instanceId),
         }
         return urc_dict
 
@@ -168,10 +153,30 @@ class AoATester:
             # For each sample in location
             for tag_id, urcs in logs_from_location[1].items():
                 azimuth_error = list(
-                    map(lambda urc: abs(urc["azimuth"] - urc["azimuth_gt"]), urcs)
+                    map(
+                        lambda urc: abs(
+                            urc["azimuth"]
+                            - (
+                                gt_key[0]
+                                if not self.antenna_upside_down
+                                else -gt_key[0]
+                            )
+                        ),
+                        urcs,
+                    )
                 )
                 theta_error = list(
-                    map(lambda urc: abs(urc["elevation"] - urc["elevation_gt"]), urcs)
+                    map(
+                        lambda urc: abs(
+                            urc["elevation"]
+                            - (
+                                gt_key[1]
+                                if not self.antenna_upside_down
+                                else -gt_key[1]
+                            )
+                        ),
+                        urcs,
+                    )
                 )
                 all_errors_phi = all_errors_phi + azimuth_error
                 all_errors_theta = all_errors_theta + theta_error
@@ -305,7 +310,12 @@ if __name__ == "__main__":
                     antenna_controller.get_antenna_location()[1],
                 )
             )
-            tester.collect_angles(10000, True)
+            tester.collect_angles(
+                10000,
+                True,
+                antenna_controller.get_antenna_rotation(),
+                antenna_controller.get_antenna_tilt(),
+            )
             antenna_controller.tilt_antenna(steps)
         antenna_controller.tilt_antenna(start_angle - steps)
         antenna_controller.rotate_antenna(steps)
