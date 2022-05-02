@@ -19,15 +19,18 @@ class AoATester:
         locate_baudrate,
         locate_ctsrts,
         antenna_upside_down=False,
+        mock=False,
     ):
         self.locate_controller = AoAController(
-            locate_port, locate_baudrate, locate_ctsrts
+            locate_port, locate_baudrate, locate_ctsrts, mock
         )
+
         self.antenna_upside_down = antenna_upside_down
 
         # We assume antenna tester is homed and at 0,0
         self.azimuth_angle = 0
         self.tilt_angle = 0
+        self.collecting_data = False
 
         self.figsize = (12, 10)
 
@@ -36,6 +39,9 @@ class AoATester:
 
     def start(self):
         self.locate_controller.start()
+
+    def stop_collect_angles(self):
+        self.collecting_data = False
 
     def collect_angles(self, timeout_ms, do_plot, gt_azimuth, gt_elevation):
         self.locate_controller.enable_aoa()
@@ -46,7 +52,11 @@ class AoATester:
         startTime = self.current_milli_time()
         raw_result = []
         parsed_result = {}
-        while self.current_milli_time() < startTime + timeout_ms:
+        self.collecting_data = True
+
+        while (
+            self.current_milli_time() < startTime + timeout_ms
+        ) and self.collecting_data:
             urc = self.locate_controller.wait_for_uudf()
             if len(urc) > 0:
                 if "+STARTUP" in urc:
@@ -115,6 +125,10 @@ class AoATester:
             with open("{}_{}.log".format(key[0], key[1]), "w") as data_file:
                 for line in log[0]:
                     data_file.write(line + "\n")
+
+    def clear_collected_data(self):
+        self.collected_data = {}
+        self.created_images = []
 
     def create_cdf(self, show_cdfs=True):
         def create_and_style_cdf(data, title):

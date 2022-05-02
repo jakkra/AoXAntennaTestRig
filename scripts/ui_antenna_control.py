@@ -1,17 +1,23 @@
 import tkinter as tk
-import time
-import argparse
+import time, sys, argparse
+import _thread
+import rel
+import threading
 from antenna_controller import AntennaController
+from analyzer import AoATester
 
 ROTATE_OPTIONS = [1, 2, 5, 10, 20, 45, 90]
 
 
 class UIController:
-    def __init__(self):
+    def __init__(self, antenna_controller, analyzer=None):
+        self.antenna_controller = antenna_controller
+        self.analyzer = analyzer
         self.is_enabled = False
+        self.is_analyzing = False
         self.window = tk.Tk()
         self.window.title("Antenna controller")
-        self.window.config(bg="#597678")
+        self.window.config(bg="#202124")
         self.create_ui()
 
     def simulate_button_press(self, button):
@@ -26,7 +32,7 @@ class UIController:
             self.window.after(100, self.simulate_button_idle, self.left_btn)
             self.left_btn.invoke()
         else:
-            controller.rotate_antenna(-int(self.rotation_amount.get()))
+            self.antenna_controller.rotate_antenna(-int(self.rotation_amount.get()))
         pass
 
     def right(self, event=None):
@@ -35,7 +41,7 @@ class UIController:
             self.window.after(100, self.simulate_button_idle, self.right_btn)
             self.right_btn.invoke()
         else:
-            controller.rotate_antenna(int(self.rotation_amount.get()))
+            self.antenna_controller.rotate_antenna(int(self.rotation_amount.get()))
         pass
 
     def up(self, event=None):
@@ -44,7 +50,7 @@ class UIController:
             self.window.after(100, self.simulate_button_idle, self.up_btn)
             self.up_btn.invoke()
         else:
-            controller.tilt_antenna(-int(self.rotation_amount.get()))
+            self.antenna_controller.tilt_antenna(-int(self.rotation_amount.get()))
         pass
 
     def down(self, event=None):
@@ -53,7 +59,7 @@ class UIController:
             self.window.after(100, self.simulate_button_idle, self.down_btn)
             self.down_btn.invoke()
         else:
-            controller.tilt_antenna(int(self.rotation_amount.get()))
+            self.antenna_controller.tilt_antenna(int(self.rotation_amount.get()))
         pass
 
     def enable(self, event=None):
@@ -63,15 +69,50 @@ class UIController:
             self.enable_button.invoke()
         else:
             if self.is_enabled:
-                self.enable_button["bg"] = "red"
-            else:
                 self.enable_button["bg"] = "green"
+                self.enable_button["text"] = "▶"
+            else:
+                self.enable_button["bg"] = "red"
+                self.enable_button["text"] = "⛌"
 
             self.is_enabled = not self.is_enabled
             if self.is_enabled:
-                controller.enable_antenna_control()
+                self.antenna_controller.enable_antenna_control()
             else:
-                controller.disable_antenna_control()
+                self.antenna_controller.disable_antenna_control()
+
+    def do_analyze(self, event=None):
+        if event != None:
+            self.simulate_button_press(self.analyze_btn)
+            self.window.after(100, self.simulate_button_idle, self.analyze_btn)
+            self.analyze_btn.invoke()
+        else:
+            self.is_analyzing = not self.is_analyzing
+            if self.is_analyzing:
+                self.analyze_btn["bg"] = "#FFA626"
+                self.analyze_btn["text"] = "Analyzing... Click to stop."
+            else:
+                self.analyze_btn["bg"] = "#1887AB"
+                self.analyze_btn["text"] = "Analyze angles"
+
+            if self.is_analyzing:
+                self.start_analyze()
+            else:
+                self.stop_analyze()
+
+    def stop_analyze(self):
+        self.analyzer.stop_collect_angles()
+
+    def start_analyze(self):
+        self.analyzer.collect_angles(
+            sys.maxsize,
+            True,
+            self.antenna_controller.get_antenna_rotation(),
+            self.antenna_controller.get_antenna_tilt(),
+        )
+        self.analyzer.save_collected_data()
+        self.analyzer.create_cdf()
+        self.analyzer.clear_collected_data()
 
     def create_ui(self):
         self.window.geometry("350x275")
@@ -90,17 +131,23 @@ class UIController:
         self.down_btn.grid(row=3, column=2, padx=2, pady=2)
 
         self.enable_button = tk.Button(
-            self.window, text="O", height=1, width=2, command=self.enable
+            self.window, text="▶", height=1, width=2, command=self.enable
         )
         self.enable_button.grid(row=2, column=2)
-        self.enable_button.config(bg="red", fg="white")
+        self.enable_button.config(bg="green", fg="white")
+
+        self.analyze_btn = tk.Button(
+            self.window, text="Analyze angles", height=1, command=self.do_analyze
+        )
+        self.analyze_btn.grid(row=2, column=5)
+        self.analyze_btn.config(bg="#1887AB", fg="white")
 
         self.rotation_amount = tk.StringVar(self.window)
         self.rotation_amount.set(ROTATE_OPTIONS[0])  # default value
 
         self.degree_label = tk.Label(self.window, text="Choose steps in degree")
         self.degree_label.grid(row=4, column=5)
-        self.degree_label.config(bg="#597678", fg="white")
+        self.degree_label.config(bg="#202124", fg="white")
 
         self.degree_dropdown = tk.OptionMenu(
             self.window, self.rotation_amount, *ROTATE_OPTIONS
@@ -135,7 +182,31 @@ if __name__ == "__main__":
         required=False,
     )
 
+    parser.add_argument("--locate_port", dest="locate_port", required=False)
+    parser.add_argument(
+        "--locate_baudrate", dest="locate_baudrate", default=115200, required=False
+    )
+
+    parser.add_argument(
+        "--no-flow",
+        dest="ctsrts",
+        action="store_false",
+        help="Flag to disable flow control, needed to run tests if CTS/RTS are not connected",
+    )
+
+    parser.add_argument("--mock", dest="mock", default=False, required=False)
+
     args = parser.parse_args()
-    controller = AntennaController(args.port, args.baudrate)
+    controller = AntennaController(args.port, args.baudrate, args.mock)
     controller.start()
-    ui = UIController()
+    controller.enable_antenna_control()
+
+    if args.locate_port:
+        analyzer = AoATester(
+            args.locate_port, args.locate_baudrate, args.ctsrts, False, args.mock
+        )
+        analyzer.start()
+
+    print("Successfuly set up communication")
+
+    ui = UIController(controller, analyzer)
