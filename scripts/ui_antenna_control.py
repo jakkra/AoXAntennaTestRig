@@ -101,18 +101,20 @@ class UIController:
                 self.stop_analyze()
 
     def stop_analyze(self):
-        self.analyzer.stop_collect_angles()
+        if self.analyzer != None:
+            self.analyzer.stop_collect_angles()
 
     def start_analyze(self):
-        self.analyzer.collect_angles(
-            sys.maxsize,
-            True,
-            self.antenna_controller.get_antenna_rotation(),
-            self.antenna_controller.get_antenna_tilt(),
-        )
-        self.analyzer.save_collected_data()
-        self.analyzer.create_cdf()
-        self.analyzer.clear_collected_data()
+        if self.analyzer != None:
+            self.analyzer.collect_angles(
+                sys.maxsize,
+                True,
+                self.antenna_controller.get_antenna_rotation(),
+                self.antenna_controller.get_antenna_tilt(),
+            )
+            self.analyzer.save_collected_data()
+            self.analyzer.create_cdf()
+            self.analyzer.clear_collected_data()
 
     def create_ui(self):
         self.window.geometry("350x275")
@@ -200,7 +202,7 @@ if __name__ == "__main__":
     controller = AntennaController(args.port, args.baudrate, args.mock)
     controller.start()
     controller.enable_antenna_control()
-
+    analyzer = None
     if args.locate_port:
         analyzer = AoATester(
             args.locate_port, args.locate_baudrate, args.ctsrts, False, args.mock
