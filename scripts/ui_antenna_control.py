@@ -105,6 +105,7 @@ class UIController:
             self.analyzer.stop_collect_angles()
 
     def start_analyze(self):
+        self.analyzer.clear_collected_data()
         if self.analyzer != None:
             self.analyzer.collect_angles(
                 sys.maxsize,
@@ -114,7 +115,6 @@ class UIController:
             )
             self.analyzer.save_collected_data()
             self.analyzer.create_cdf()
-            self.analyzer.clear_collected_data()
 
     def create_ui(self):
         self.window.geometry("350x275")

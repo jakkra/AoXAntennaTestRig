@@ -61,8 +61,11 @@ class AoATester:
             if len(urc) > 0:
                 if "+STARTUP" in urc:
                     raise Exception("Module crash detected")
-                urc_dict = self.parse_uudf(urc)
-                if urc_dict == None:
+                try:
+                    urc_dict = self.parse_uudf(urc)
+                    if urc_dict == None:
+                        continue
+                except:
                     continue
                 # If we successfully parsed event then save it
                 raw_result.append(urc)
@@ -103,6 +106,8 @@ class AoATester:
 
         urc_params = r.split(",")
         instanceId = urc_params[0][1:]
+        if len(instanceId) != 12:
+            return None
 
         urc_dict = {
             "instanceId": instanceId,
@@ -159,9 +164,9 @@ class AoATester:
             plt.gca().tick_params(axis="y", colors="white")
             plt.gca().grid(alpha=0.4, color="#212F3D")
 
+        all_errors_phi = {}
+        all_errors_theta = {}
         tags_errors = {}
-        all_errors_phi = []
-        all_errors_theta = []
         # gt_key is a tuple (azimuth_gt, elevation_gt)
         for gt_key, logs_from_location in self.collected_data.items():
             # For each sample in location
@@ -192,8 +197,12 @@ class AoATester:
                         urcs,
                     )
                 )
-                all_errors_phi = all_errors_phi + azimuth_error
-                all_errors_theta = all_errors_theta + theta_error
+                all_errors_phi[tag_id] = (
+                    all_errors_phi[tag_id] if tag_id in all_errors_phi else []
+                ) + azimuth_error
+                all_errors_theta[tag_id] = (
+                    all_errors_theta[tag_id] if tag_id in all_errors_theta else []
+                ) + theta_error
                 tags_errors[tag_id] = {
                     "azimuth_errors": azimuth_error,
                     "elevation_errors": theta_error,
@@ -234,7 +243,36 @@ class AoATester:
             else:
                 plt.clf()
                 plt.close()
+        # Plot CDF for all positings per tag
+        plot_num = 1
+        fig = plt.figure(figsize=self.figsize)
+        fig.patch.set_facecolor("#202124")
+        fig.subplots_adjust(wspace=0.15)
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.7)
+        plt.gcf().text(
+            0.40,
+            0.99,
+            "CDF per tag combined CDF",
+            va="top",
+            fontsize=22,
+        )
+        for tag_id in all_errors_phi:
+            plt.subplot(6, 2, plot_num)
+            create_and_style_cdf(all_errors_phi[tag_id], "Azimuth {}".format(tag_id))
+            plot_num = plot_num + 1
 
+            plt.subplot(6, 2, plot_num)
+            create_and_style_cdf(
+                all_errors_theta[tag_id], "Elevation {}".format(tag_id)
+            )
+            plot_num = plot_num + 1
+
+        img_name = "combined_cdf_per_tag.png".format(gt_key[0], gt_key[1])
+        self.created_images.append(img_name)
+        plt.savefig(img_name)
+        plt.show(block=False)
+
+        # Plot CDF for all tags combined
         fig = plt.figure(figsize=self.figsize)
         fig.patch.set_facecolor("#202124")
         fig.subplots_adjust(wspace=0.3)
@@ -247,9 +285,15 @@ class AoATester:
             fontsize=22,
         )
         plt.subplot(2, 1, 1)
-        create_and_style_cdf(all_errors_phi, "For all tags azimuth")
+        all_errors_phi_combined = [
+            item for sublist in list(all_errors_phi.values()) for item in sublist
+        ]
+        all_errors_theta_combined = [
+            item for sublist in list(all_errors_theta.values()) for item in sublist
+        ]
+        create_and_style_cdf(all_errors_phi_combined, "For all tags azimuth")
         plt.subplot(2, 1, 2)
-        create_and_style_cdf(all_errors_theta, "For all tags theta")
+        create_and_style_cdf(all_errors_theta_combined, "For all tags theta")
         plt.savefig("cdf_all_tags.png")
         self.created_images.append("cdf_all_tags.png")
         plt.show()
@@ -309,10 +353,9 @@ if __name__ == "__main__":
     print("Successfuly set up communication")
     tester.start()
     # Note must be in even dividable steps
-    start_angle = -40
-    end_angle = 40
-    steps = 20
-
+    start_angle = -50
+    end_angle = 50
+    steps = 10
     antenna_controller.rotate_antenna(start_angle)
 
     for azimuth_angle in range(start_angle, end_angle + 1, steps):
@@ -325,7 +368,7 @@ if __name__ == "__main__":
                 )
             )
             tester.collect_angles(
-                10000,
+                12000,
                 True,
                 antenna_controller.get_antenna_rotation(),
                 antenna_controller.get_antenna_tilt(),
