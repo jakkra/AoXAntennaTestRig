@@ -171,9 +171,17 @@ class LivePlot:
             )
 
         def add_data(self, azimuth, elevation):
-            self.azimuth.append(azimuth)
+            if isinstance(azimuth, list):
+                print("Is a list")
+                self.azimuth = self.azimuth + azimuth
+                self.elevation = self.elevation + elevation
+                azimuth = 0
+                elevation = 0
+            else:
+                self.azimuth.append(azimuth)
+                self.elevation.append(elevation)
+
             azim_to_plot = self.azimuth[-self.max_data_len :]
-            self.elevation.append(elevation)
             elev_to_plot = self.elevation[-self.max_data_len :]
             self.x = np.linspace(0, len(azim_to_plot), num=len(azim_to_plot))
             self.azimuth_line.set_data(self.x, azim_to_plot)

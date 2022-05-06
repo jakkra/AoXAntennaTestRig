@@ -20,11 +20,16 @@ class AoATester:
         locate_ctsrts,
         antenna_upside_down=False,
         mock=False,
+        analyzer_only=False,
     ):
-        self.locate_controller = AoAController(
-            locate_port, locate_baudrate, locate_ctsrts, mock
-        )
+        if not analyzer_only:
+            self.locate_controller = AoAController(
+                locate_port, locate_baudrate, locate_ctsrts, mock
+            )
+        else:
+            self.locate_controller = None
 
+        self.analyzer_only = analyzer_only
         self.antenna_upside_down = antenna_upside_down
 
         # We assume antenna tester is homed and at 0,0
@@ -38,12 +43,16 @@ class AoATester:
         self.created_images = []
 
     def start(self):
-        self.locate_controller.start()
+        if not self.analyzer_only:
+            self.locate_controller.start()
 
     def stop_collect_angles(self):
         self.collecting_data = False
 
+    # TODO refactor so that there is no dependensy on locate_controller inside this class
     def collect_angles(self, timeout_ms, do_plot, gt_azimuth, gt_elevation):
+        if self.analyzer_only:
+            raise Exception("Analyzer in analyzer_only mode, function not supported.")
         self.locate_controller.enable_aoa()
         graph = None
         if do_plot:
@@ -97,6 +106,68 @@ class AoATester:
         )
         return (raw_result, parsed_result)
 
+    def analyze_logs(
+        self, log_file, do_plot, gt_azimuth, gt_elevation, remove_90=False
+    ):
+        graph = None
+        if do_plot:
+            graph = LivePlot(self.figsize, gt_azimuth, gt_elevation)
+
+        raw_result = []
+        parsed_result = {}
+        self.collecting_data = True
+        tag_angles = {}
+
+        for urc in log_file:
+            urc_dict = self.parse_uudf(urc)
+            if urc_dict == None:
+                continue
+            if remove_90 and (
+                abs(urc_dict["azimuth"]) >= 90 or abs(urc_dict["elevation"]) >= 90
+            ):
+                print("Drop: {}, {}".format(urc_dict["azimuth"], urc_dict["elevation"]))
+                continue
+
+            # If we successfully parsed event then save it
+            tag_id = urc_dict["instanceId"]
+            raw_result.append(urc)
+
+            if tag_id in parsed_result:
+                parsed_result[tag_id].append(urc_dict)
+            else:
+                parsed_result[tag_id] = []
+                parsed_result[tag_id].append(urc_dict)
+                tag_angles[tag_id] = {"azimuth": [], "elevation": []}
+            tag_angles[tag_id]["azimuth"].append(
+                urc_dict["azimuth"]
+                if not self.antenna_upside_down
+                else -urc_dict["azimuth"]
+            )
+            tag_angles[tag_id]["elevation"].append(
+                urc_dict["elevation"]
+                if not self.antenna_upside_down
+                else -urc_dict["elevation"]
+            )
+        if do_plot:
+            for tag_id, angles in tag_angles.items():
+                graph.add_tag_sample(
+                    tag_id,
+                    angles["azimuth"],
+                    angles["elevation"],
+                    gt_azimuth,
+                    gt_elevation,
+                )
+
+            img = graph.save_snapshot_png("{}_{}".format(gt_azimuth, gt_elevation))
+            self.created_images.append(img)
+            graph.destroy()
+        # Save the result in a map with a tuple of azimuth and tilt as key
+        self.collected_data[(gt_azimuth, gt_elevation)] = (
+            raw_result,
+            parsed_result,
+        )
+        return (raw_result, parsed_result)
+
     def parse_uudf(self, urc_str):
         splitted = urc_str.find(":")
 
@@ -135,7 +206,7 @@ class AoATester:
         self.collected_data = {}
         self.created_images = []
 
-    def create_cdf(self, show_cdfs=True):
+    def create_cdf(self, show_cdfs=True, summary_only=False):
         def create_and_style_cdf(data, title):
             cdf_color = "green"
             if sum(i <= 10 for i in data) / len(data) < 0.9:
@@ -208,41 +279,29 @@ class AoATester:
                     "elevation_errors": theta_error,
                 }
             plot_num = 1
-            fig = plt.figure(figsize=self.figsize)
-            fig.patch.set_facecolor("#202124")
-            fig.subplots_adjust(wspace=0.15)
-            plt.subplots_adjust(
-                left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.7
-            )
-            plt.gcf().text(
-                0.40,
-                0.99,
-                "Ground truth ({}, {})".format(gt_key[0], gt_key[1]),
-                va="top",
-                fontsize=22,
-            )
-
-            for tag_id, errors in tags_errors.items():
-                plt.subplot(6, 2, plot_num)
-                create_and_style_cdf(
-                    errors["azimuth_errors"], "Azimuth {}".format(tag_id)
+            if not summary_only:
+                fig = plt.figure(figsize=self.figsize)
+                fig.patch.set_facecolor("#202124")
+                fig.subplots_adjust(wspace=0.15)
+                plt.subplots_adjust(
+                    left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.7
                 )
-                plot_num = plot_num + 1
-
-                plt.subplot(6, 2, plot_num)
-                create_and_style_cdf(
-                    errors["elevation_errors"], "Elevation {}".format(tag_id)
+                plt.gcf().text(
+                    0.40,
+                    0.99,
+                    "Ground truth ({}, {})".format(gt_key[0], gt_key[1]),
+                    va="top",
+                    fontsize=22,
                 )
-                plot_num = plot_num + 1
 
-            img_name = "{}_{}_cdf.png".format(gt_key[0], gt_key[1])
-            self.created_images.append(img_name)
-            plt.savefig(img_name)
-            if show_cdfs:
-                plt.show()
-            else:
-                plt.clf()
-                plt.close()
+                img_name = "{}_{}_cdf.png".format(gt_key[0], gt_key[1])
+                self.created_images.append(img_name)
+                plt.savefig(img_name)
+                if show_cdfs:
+                    plt.show()
+                else:
+                    plt.clf()
+                    plt.close()
         # Plot CDF for all positings per tag
         plot_num = 1
         fig = plt.figure(figsize=self.figsize)
