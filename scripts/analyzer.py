@@ -5,8 +5,10 @@ import numpy as np
 from datetime import datetime
 from fpdf import FPDF
 import os
+import glob
 from antenna_controller import AntennaController
 from aoa_controller import AoAController
+import shutil
 
 
 from live_plot import LivePlot
@@ -367,6 +369,8 @@ class AoATester:
             pdf.image(image, 0, 0, 210, int(210 * self.figsize[1] / self.figsize[0]))
         pdf.output("{}.pdf".format(name), "F")
 
+        return "{}.pdf".format(name)
+
     def delete_created_images(self):
         for img in self.created_images:
             os.remove(img)
@@ -396,6 +400,10 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    # Cleanup if there are some old .log files
+    for file in glob.glob("*.log"):
+        os.remove(os.path.join(os.path.dirname(__file__), file))
 
     antenna_controller = AntennaController(
         args.controller_port, args.controller_baudrate
@@ -444,10 +452,19 @@ if __name__ == "__main__":
 
     now = datetime.now()  # current date and time
     date_time = now.strftime("%d_%m_%Y-%H-%M")
-    pdf_report_name = "report_{}".format(date_time)
-    print("Saving PDF: ", pdf_report_name)
-    print("Note, it will take some time...")
-    tester.create_pdf_report(pdf_report_name)
-    tester.delete_created_images()
+    measurement_name = "report_{}".format(date_time)
 
+    # Move all log files into a folder
+    current_dir_path = os.path.dirname(os.path.realpath(__file__))
+    os.makedirs(os.path.join(current_dir_path, measurement_name))
+    report_folder = os.path.join(current_dir_path, measurement_name)
+    for file in glob.glob(os.path.join(current_dir_path, "*.log")):
+        shutil.move(os.path.join(current_dir_path, file), report_folder)
+
+    print("Saving PDF: ", measurement_name)
+    print("Note, it will take some time...")
+    pdf_full_name = tester.create_pdf_report(measurement_name)
+    shutil.move(os.path.join(current_dir_path, pdf_full_name), report_folder)
+
+    tester.delete_created_images()
     print("Finished")
