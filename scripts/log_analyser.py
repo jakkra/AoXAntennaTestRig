@@ -13,11 +13,29 @@ from analyzer import AoATester
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AoA Analyzer ")
 
-    parser.add_argument("--log_dir", dest="log_dir", default="./", required=False)
+    parser.add_argument(
+        "--log_dir",
+        dest="log_dir",
+        default="./",
+        required=False,
+        help="Path to folder with log files in.",
+    )
 
-    parser.add_argument("--remove_90", dest="remove_90", default=False, required=False)
+    parser.add_argument(
+        "--remove_90",
+        dest="remove_90",
+        default=False,
+        required=False,
+        help="Drop any angles that are +-90, used for testing.",
+    )
 
-    parser.add_argument("--max_angle", dest="max_angle", default=90, required=False)
+    parser.add_argument(
+        "--max_angle",
+        dest="max_angle",
+        default=90,
+        required=False,
+        help="Drop all angles utside of the range [-max_angle, max_angle].",
+    )
 
     args = parser.parse_args()
     print("Max angle:", args.max_angle)

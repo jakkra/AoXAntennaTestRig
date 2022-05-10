@@ -1,7 +1,7 @@
 fpdf==1.7.2
-matplotlib==3.3.2
-numpy==1.19.2
-opencv_python==4.5.5.64
+matplotlib>=3.3.2
+numpy>=1.19.2
+opencv_python>=4.5.5.64
 Pillow==9.1.0
 pyserial==3.5
 rel==0.4.7

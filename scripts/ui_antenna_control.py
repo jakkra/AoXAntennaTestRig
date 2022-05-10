@@ -11,7 +11,7 @@ from antenna_controller import AntennaController
 from analyzer import AoATester
 from webcam_window import WebcamWindow
 
-ROTATE_OPTIONS = [1, 2, 5, 10, 20, 45, 90]
+ROTATE_OPTIONS = [1, 2, 5, 10, 20, 40, 45, 90]
 
 
 class UIController:
@@ -198,24 +198,44 @@ if __name__ == "__main__":
         dest="baudrate",
         default=115200,
         required=False,
+        help="Serial port of the antenna controller.",
     )
 
-    parser.add_argument("--locate_port", dest="locate_port", required=False)
     parser.add_argument(
-        "--locate_baudrate", dest="locate_baudrate", default=115200, required=False
+        "--locate_port",
+        dest="locate_port",
+        required=False,
+        help="Serial port of u-connectLocate module.",
+    )
+    parser.add_argument(
+        "--locate_baudrate",
+        dest="locate_baudrate",
+        default=115200,
+        required=False,
+        help="Baudrate for u-connectLocate.",
     )
 
     parser.add_argument(
         "--no-flow",
         dest="ctsrts",
         action="store_false",
-        help="Flag to disable flow control, needed to run tests if CTS/RTS are not connected",
+        help="Flag to disable flow control for u-connectLocate, needed to run tests if CTS/RTS are not connected.",
     )
     parser.add_argument(
-        "--webcam", dest="webcam", action="store_true", default=False, required=False
+        "--webcam",
+        dest="webcam",
+        action="store_true",
+        default=False,
+        required=False,
+        help="Open a window displaying the webcam, can be used to monitor when running remotely.",
     )
     parser.add_argument(
-        "--mock", dest="mock", action="store_true", default=False, required=False
+        "--mock",
+        dest="mock",
+        action="store_true",
+        default=False,
+        required=False,
+        help="For testing without antenna controller and u-connectLocate. Data will be generated.",
     )
 
     args = parser.parse_args()
