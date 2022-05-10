@@ -27,6 +27,8 @@ def send_command_and_wait_rsp(ser, data, timeout=1):
     ser.flushInput()
     print("sending: " + data)
     write_line_port(ser, data)
+    if timeout == 0:
+        return ""
     r = read_line(ser)
     now = time.time()
     while (

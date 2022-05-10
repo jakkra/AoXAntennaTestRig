@@ -30,19 +30,25 @@ class AntennaController:
         if res == -1:
             raise Exception("Failed disable antenna!")
 
-    def rotate_antenna(self, degree):
+    def rotate_antenna(self, degree, blocking=True):
         if not self.mock:
+            timeout = 10
+            if not blocking:
+                timeout = 0
             res = send_command_and_wait_rsp(
-                self.ser_controller, "AZIMUTH={}".format(degree), 10
+                self.ser_controller, "AZIMUTH={}".format(degree), timeout
             )
             if res == -1:
                 raise Exception("Failed rotating antenna!")
         self.azimuth_angle = self.azimuth_angle + degree
 
-    def tilt_antenna(self, degree):
+    def tilt_antenna(self, degree, blocking=True):
         if not self.mock:
+            timeout = 10
+            if not blocking:
+                timeout = 0
             res = send_command_and_wait_rsp(
-                self.ser_controller, "TILT={}".format(degree), 10
+                self.ser_controller, "TILT={}".format(degree), timeout
             )
             if res == -1:
                 raise Exception("Failed rotating antenna!")

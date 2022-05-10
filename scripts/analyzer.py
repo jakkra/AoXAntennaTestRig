@@ -9,9 +9,9 @@ import glob
 from antenna_controller import AntennaController
 from aoa_controller import AoAController
 import shutil
-
-
+import tkinter as tk
 from live_plot import LivePlot
+from webcam_window import WebcamWindow
 
 
 class AoATester:
@@ -296,6 +296,19 @@ class AoATester:
                     fontsize=22,
                 )
 
+                for tag_id, errors in tags_errors.items():
+                    plt.subplot(6, 2, plot_num)
+                    create_and_style_cdf(
+                        errors["azimuth_errors"], "Azimuth {}".format(tag_id)
+                    )
+                    plot_num = plot_num + 1
+
+                    plt.subplot(6, 2, plot_num)
+                    create_and_style_cdf(
+                        errors["elevation_errors"], "Elevation {}".format(tag_id)
+                    )
+                    plot_num = plot_num + 1
+
                 img_name = "{}_{}_cdf.png".format(gt_key[0], gt_key[1])
                 self.created_images.append(img_name)
                 plt.savefig(img_name)
@@ -374,6 +387,7 @@ class AoATester:
     def delete_created_images(self):
         for img in self.created_images:
             os.remove(img)
+        self.created_images = []
 
 
 if __name__ == "__main__":
@@ -399,6 +413,10 @@ if __name__ == "__main__":
         help="Flag to disable flow control, needed to run tests if CTS/RTS are not connected",
     )
 
+    parser.add_argument(
+        "--webcam", dest="webcam", action="store_true", default=False, required=False
+    )
+
     args = parser.parse_args()
 
     # Cleanup if there are some old .log files
@@ -417,12 +435,17 @@ if __name__ == "__main__":
         args.ctsrts,
     )
 
-    print("Successfuly set up communication")
+    if args.webcam:
+        WebcamWindow()
+
+    print("Successfully set up communication")
     tester.start()
+
     # Note must be in even dividable steps
     start_angle = -50
     end_angle = 50
     steps = 10
+    millies_per_angle = 12000
     antenna_controller.rotate_antenna(start_angle)
 
     for azimuth_angle in range(start_angle, end_angle + 1, steps):
@@ -435,7 +458,7 @@ if __name__ == "__main__":
                 )
             )
             tester.collect_angles(
-                12000,
+                millies_per_angle,
                 True,
                 antenna_controller.get_antenna_rotation(),
                 antenna_controller.get_antenna_tilt(),

@@ -3,14 +3,19 @@ import time, sys, argparse
 import _thread
 import rel
 import threading
+import PIL
+from PIL import Image, ImageTk
+import cv2
+
 from antenna_controller import AntennaController
 from analyzer import AoATester
+from webcam_window import WebcamWindow
 
 ROTATE_OPTIONS = [1, 2, 5, 10, 20, 45, 90]
 
 
 class UIController:
-    def __init__(self, antenna_controller, analyzer=None):
+    def __init__(self, antenna_controller, analyzer=None, show_webcam=False):
         self.antenna_controller = antenna_controller
         self.analyzer = analyzer
         self.is_enabled = False
@@ -18,6 +23,9 @@ class UIController:
         self.window = tk.Tk()
         self.window.title("Antenna controller")
         self.window.config(bg="#202124")
+        if show_webcam:
+            webcam_window = tk.Toplevel(self.window)
+            WebcamWindow(webcam_window)
         self.create_ui()
 
     def simulate_button_press(self, button):
@@ -32,7 +40,9 @@ class UIController:
             self.window.after(100, self.simulate_button_idle, self.left_btn)
             self.left_btn.invoke()
         else:
-            self.antenna_controller.rotate_antenna(-int(self.rotation_amount.get()))
+            self.antenna_controller.rotate_antenna(
+                -int(self.rotation_amount.get()), blocking=False
+            )
         pass
 
     def right(self, event=None):
@@ -41,7 +51,9 @@ class UIController:
             self.window.after(100, self.simulate_button_idle, self.right_btn)
             self.right_btn.invoke()
         else:
-            self.antenna_controller.rotate_antenna(int(self.rotation_amount.get()))
+            self.antenna_controller.rotate_antenna(
+                int(self.rotation_amount.get()), blocking=False
+            )
         pass
 
     def up(self, event=None):
@@ -50,7 +62,9 @@ class UIController:
             self.window.after(100, self.simulate_button_idle, self.up_btn)
             self.up_btn.invoke()
         else:
-            self.antenna_controller.tilt_antenna(-int(self.rotation_amount.get()))
+            self.antenna_controller.tilt_antenna(
+                -int(self.rotation_amount.get()), blocking=False
+            )
         pass
 
     def down(self, event=None):
@@ -59,7 +73,9 @@ class UIController:
             self.window.after(100, self.simulate_button_idle, self.down_btn)
             self.down_btn.invoke()
         else:
-            self.antenna_controller.tilt_antenna(int(self.rotation_amount.get()))
+            self.antenna_controller.tilt_antenna(
+                int(self.rotation_amount.get()), blocking=False
+            )
         pass
 
     def enable(self, event=None):
@@ -195,8 +211,12 @@ if __name__ == "__main__":
         action="store_false",
         help="Flag to disable flow control, needed to run tests if CTS/RTS are not connected",
     )
-
-    parser.add_argument("--mock", dest="mock", default=False, required=False)
+    parser.add_argument(
+        "--webcam", dest="webcam", action="store_true", default=False, required=False
+    )
+    parser.add_argument(
+        "--mock", dest="mock", action="store_true", default=False, required=False
+    )
 
     args = parser.parse_args()
     controller = AntennaController(args.port, args.baudrate, args.mock)
@@ -209,6 +229,7 @@ if __name__ == "__main__":
         )
         analyzer.start()
 
-    print("Successfuly set up communication")
+    print("Successfully set up communication")
 
-    ui = UIController(controller, analyzer)
+    ui = UIController(controller, analyzer, args.webcam)
+    analyzer.delete_created_images()
