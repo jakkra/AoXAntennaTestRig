@@ -12,6 +12,7 @@ class LivePlot:
         self.fig = plt.figure(figsize=figsize)
         self.fig.patch.set_facecolor("#65494c")
         self.fig.subplots_adjust(wspace=0.09)
+        self.redraw_counter = 0
         plt.gcf().text(
             0.40,
             0.99,
@@ -51,29 +52,33 @@ class LivePlot:
                 elevation_gt,
             )
             self.fig.canvas.draw()
+        # Redrawing on every sample will cause delays.
+        # This is a bit of a hack to just draw every 5 samples.
+        self.redraw_counter = self.redraw_counter + 1
+        do_redraw = True if self.redraw_counter % 5 == 0 else False
+        self.tags[tag_id].add_data(azimuth, elevation, do_redraw)
 
-        self.tags[tag_id].add_data(azimuth, elevation)
-
-        stats_text = "TAG\t\t\tMean Azimuth (err)\tMean Elevation (err)\tNum Angles\n".expandtabs()
-        stats_text = stats_text + "-" * 100 + "\n"
-        for id, tag in self.tags.items():
-            azim_data = tag.get_azimuth_data()
-            elev_data = tag.get_elevation_data()
-            stats_text = (
-                stats_text
-                + "{}\t{:.2f}({:.2f})\t\t{:.2f}({:.2f})\t\t\t{}\n".format(
-                    id,
-                    round(np.mean(azim_data), 2),
-                    round(abs(np.mean(azim_data) - azimith_gt), 2),
-                    round(np.mean(elev_data), 2),
-                    round(abs(np.mean(elev_data) - elevation_gt), 2),
-                    len(azim_data),
-                ).expandtabs()
-            )
-        self.fig.canvas.restore_region(self.stats_pltbackground),
-        self.text_stats.set_text(stats_text)
-        self.stats_plt.draw_artist(self.text_stats)
-        self.fig.canvas.blit(self.stats_plt.bbox)
+        if do_redraw:
+            stats_text = "TAG\t\t\tMean Azimuth (err)\tMean Elevation (err)\tNum Angles\n".expandtabs()
+            stats_text = stats_text + "-" * 100 + "\n"
+            for id, tag in self.tags.items():
+                azim_data = tag.get_azimuth_data()
+                elev_data = tag.get_elevation_data()
+                stats_text = (
+                    stats_text
+                    + "{}\t{:.2f}({:.2f})\t\t{:.2f}({:.2f})\t\t\t{}\n".format(
+                        id,
+                        round(np.mean(azim_data), 2),
+                        round(abs(np.mean(azim_data) - azimith_gt), 2),
+                        round(np.mean(elev_data), 2),
+                        round(abs(np.mean(elev_data) - elevation_gt), 2),
+                        len(azim_data),
+                    ).expandtabs()
+                )
+            self.fig.canvas.restore_region(self.stats_pltbackground),
+            self.text_stats.set_text(stats_text)
+            self.stats_plt.draw_artist(self.text_stats)
+            self.fig.canvas.blit(self.stats_plt.bbox)
 
     def save_snapshot_png(self, name):
         filename = "{}.png".format(name)
@@ -170,7 +175,9 @@ class LivePlot:
                 self.elev_plt.bbox
             )
 
-        def add_data(self, azimuth, elevation):
+        def add_data(self, azimuth, elevation, redraw=True):
+            # Allow to input multiple data points at once.
+            # Otherwise we would have to redraw for each individual sample which is slow.
             if isinstance(azimuth, list):
                 print("Is a list")
                 self.azimuth = self.azimuth + azimuth
@@ -197,27 +204,28 @@ class LivePlot:
                 "{} => err: {}".format(elevation, abs(self.elevation_gt - elevation))
             )
 
-            # redraw just the points
-            self.elev_plt.draw_artist(self.elevation_line)
-            self.azim_plt.draw_artist(self.azimuth_line)
-            self.azim_plt.draw_artist(self.text_azim)
-            self.elev_plt.draw_artist(self.text_elev)
-            self.azim_plt.draw_artist(self.azim_gt_line)
-            self.elev_plt.draw_artist(self.elev_gt_line)
+            if redraw:
+                # redraw just the points
+                self.elev_plt.draw_artist(self.elevation_line)
+                self.azim_plt.draw_artist(self.azimuth_line)
+                self.azim_plt.draw_artist(self.text_azim)
+                self.elev_plt.draw_artist(self.text_elev)
+                self.azim_plt.draw_artist(self.azim_gt_line)
+                self.elev_plt.draw_artist(self.elev_gt_line)
 
-            # fill in the axes rectangle
-            self.fig.canvas.blit(self.azim_plt.bbox)
-            self.fig.canvas.blit(self.elev_plt.bbox)
+                # fill in the axes rectangle
+                self.fig.canvas.blit(self.azim_plt.bbox)
+                self.fig.canvas.blit(self.elev_plt.bbox)
 
-            # in this post http://bastibe.de/2013-05-30-speeding-up-matplotlib.html
-            # it is mentionned that blit causes strong memory leakage.
-            # however, I did not observe that.
+                # in this post http://bastibe.de/2013-05-30-speeding-up-matplotlib.html
+                # it is mentionned that blit causes strong memory leakage.
+                # however, I did not observe that.
 
-            self.fig.canvas.flush_events()
-            # alternatively you could use
-            # plt.pause(0.000000000001)
-            # however plt.pause calls canvas.draw(), as can be read here:
-            # http://bastibe.de/2013-05-30-speeding-up-matplotlib.html
+                self.fig.canvas.flush_events()
+                # alternatively you could use
+                # plt.pause(0.000000000001)
+                # however plt.pause calls canvas.draw(), as can be read here:
+                # http://bastibe.de/2013-05-30-speeding-up-matplotlib.html
 
         def get_azimuth_data(self):
             return self.azimuth
