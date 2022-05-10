@@ -6,7 +6,6 @@ import numpy as np
 class LivePlot:
     def __init__(self, figsize, antenna_azimuth, antenna_tilt):
         self.plot_hist_length = 100
-        plt.rcParams.update({"text.color": "white"})
         self.x = np.linspace(0, self.plot_hist_length)
         self.X, self.Y = np.meshgrid(self.x, self.x)
         self.fig = plt.figure(figsize=figsize)

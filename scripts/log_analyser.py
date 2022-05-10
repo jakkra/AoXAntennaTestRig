@@ -25,7 +25,6 @@ if __name__ == "__main__":
 
     analyzer = AoATester(None, None, None, False, False, True)
     logs = glob.glob(args.log_dir + "/*.log")
-    print(args.remove_90)
     if len(logs) == 0:
         print("No log files found in {}".format(args.log_dir))
 

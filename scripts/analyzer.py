@@ -1,6 +1,7 @@
 import argparse, sys, time
 from serial_helpers import open_port, close_port, send_command_and_wait_rsp, read_line
 from matplotlib import pyplot as plt
+plt.rcParams.update({"text.color": "white"})
 import numpy as np
 from datetime import datetime
 from fpdf import FPDF
@@ -326,9 +327,9 @@ class AoATester:
         fig.subplots_adjust(wspace=0.15)
         plt.subplots_adjust(left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.7)
         plt.gcf().text(
-            0.40,
+            0.35,
             0.99,
-            "CDF per tag combined CDF",
+            "Per tag combined CDF",
             va="top",
             fontsize=22,
         )
@@ -355,7 +356,7 @@ class AoATester:
         fig.subplots_adjust(wspace=0.3)
         plt.subplots_adjust(left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.4)
         plt.gcf().text(
-            0.40,
+            0.30,
             0.99,
             "All tags and positions combined CDF",
             va="top",
