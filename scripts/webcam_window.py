@@ -2,31 +2,13 @@ import tkinter as tk
 import PIL
 from PIL import Image, ImageTk
 import cv2
-import threading
+import matplotlib.pyplot as plt
 
 
-class WebcamWindow(threading.Thread):
+class WebcamWindow:
     def __init__(self, window=None):
-        # A bit hacky, but if no window is provided
-        # We will spin up a new instance of Tkinter
-        # and run it's mainloop in the background.
-        if window:
-            self.window = window
-            self.create_webcam()
-        else:
-            threading.Thread.__init__(self)
-            self.start()
-
-    def callback(self):
-        self.window.quit()
-
-    def run(self):
-        self.window = tk.Tk()
-        self.window.title("Webcam feed")
-        self.window.config(bg="#202124")
+        self.window = window
         self.create_webcam()
-
-        self.window.mainloop()
 
     def create_webcam(self):
         width, height = 800, 600

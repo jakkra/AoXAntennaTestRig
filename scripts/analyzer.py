@@ -284,6 +284,7 @@ class AoATester:
             if not summary_only:
                 fig = plt.figure(figsize=self.figsize)
                 fig.patch.set_facecolor("#202124")
+                fig.canvas.manager.set_window_title("CDFs")
                 fig.subplots_adjust(wspace=0.15)
                 plt.subplots_adjust(
                     left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.7
@@ -321,6 +322,7 @@ class AoATester:
         plot_num = 1
         fig = plt.figure(figsize=self.figsize)
         fig.patch.set_facecolor("#202124")
+        fig.canvas.manager.set_window_title("CDFs")
         fig.subplots_adjust(wspace=0.15)
         plt.subplots_adjust(left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.7)
         plt.gcf().text(
@@ -349,6 +351,7 @@ class AoATester:
         # Plot CDF for all tags combined
         fig = plt.figure(figsize=self.figsize)
         fig.patch.set_facecolor("#202124")
+        fig.canvas.manager.set_window_title("CDFs")
         fig.subplots_adjust(wspace=0.3)
         plt.subplots_adjust(left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.4)
         plt.gcf().text(
@@ -436,7 +439,8 @@ if __name__ == "__main__":
     )
 
     if args.webcam:
-        WebcamWindow()
+        webcam_window = tk.Tk()
+        WebcamWindow(webcam_window)
 
     print("Successfully set up communication")
     tester.start()
@@ -445,9 +449,9 @@ if __name__ == "__main__":
     start_angle = -50
     end_angle = 50
     steps = 10
-    millies_per_angle = 12000
-    antenna_controller.rotate_antenna(start_angle)
+    millies_per_angle = 10000
 
+    antenna_controller.rotate_antenna(start_angle)
     for azimuth_angle in range(start_angle, end_angle + 1, steps):
         antenna_controller.tilt_antenna(start_angle)
         for tilt_angle in range(start_angle, end_angle + 1, steps):
@@ -468,8 +472,8 @@ if __name__ == "__main__":
         antenna_controller.rotate_antenna(steps)
 
     antenna_controller.rotate_antenna(start_angle - steps)
-
     antenna_controller.disable_antenna_control()
+
     tester.save_collected_data()
     tester.create_cdf(False)
 

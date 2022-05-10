@@ -11,6 +11,7 @@ class LivePlot:
         self.X, self.Y = np.meshgrid(self.x, self.x)
         self.fig = plt.figure(figsize=figsize)
         self.fig.patch.set_facecolor("#65494c")
+        self.fig.canvas.manager.set_window_title("Live angles")
         self.fig.subplots_adjust(wspace=0.09)
         self.redraw_counter = 0
         plt.gcf().text(
@@ -98,7 +99,6 @@ class LivePlot:
             self.fig = fig
             self.max_data_len = max_data_len
 
-            print("Add tag to plot")
             self.azim_plt = self.fig.add_subplot(
                 6, 2, index * 2 + 1, title="Azimuth {0} ".format(id)
             )
