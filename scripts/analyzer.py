@@ -210,29 +210,34 @@ class AoATester:
         self.collected_data = {}
         self.created_images = []
 
-    def create_cdf(self, show_cdfs=True, summary_only=False):
+    def create_plots(self, show_plots=True, summary_only=False, distribution_plot=False):
         def create_and_style_cdf(data, title):
+            if not distribution_plot:
+                data = list(map(lambda angle: abs(angle), data))
             cdf_color = "green"
             if sum(i <= 10 for i in data) / len(data) < 0.9:
                 cdf_color = "red"
 
             bins = range(min(data), max(data) + 1, 1)  # Equally distributed
+
             plt.hist(
                 data,
                 bins=bins,
                 density=True,
-                cumulative=True,
+                cumulative=not distribution_plot,
                 label="CDF",
                 histtype="bar",
                 alpha=0.9,
                 color=cdf_color,
             )
             plt.title(title)
-            plt.axvline(x=10)
+            if not distribution_plot:
+                plt.axvline(x=10)
             plt.xlabel("Angle error", {"color": "white"})
             plt.ylabel("Percent", {"color": "white"})
-            plt.gca().set_xlim(0)
-            plt.gca().set_ylim(0, 1)
+            if not distribution_plot:
+                plt.gca().set_xlim(0)
+                plt.gca().set_ylim(0, 1)
             plt.gca().xaxis.label.set_color("white")
             plt.gca().yaxis.label.set_color("white")
             plt.gca().tick_params(axis="x", colors="white")
@@ -248,27 +253,15 @@ class AoATester:
             for tag_id, urcs in logs_from_location[1].items():
                 azimuth_error = list(
                     map(
-                        lambda urc: abs(
-                            urc["azimuth"]
-                            - (
-                                gt_key[0]
-                                if not self.antenna_upside_down
-                                else -gt_key[0]
-                            )
-                        ),
+                        lambda urc: urc["azimuth"]
+                        - (gt_key[0] if not self.antenna_upside_down else -gt_key[0]),
                         urcs,
                     )
                 )
                 theta_error = list(
                     map(
-                        lambda urc: abs(
-                            urc["elevation"]
-                            - (
-                                gt_key[1]
-                                if not self.antenna_upside_down
-                                else -gt_key[1]
-                            )
-                        ),
+                        lambda urc: urc["elevation"]
+                        - (gt_key[1] if not self.antenna_upside_down else -gt_key[1]),
                         urcs,
                     )
                 )
@@ -283,10 +276,13 @@ class AoATester:
                     "elevation_errors": theta_error,
                 }
             plot_num = 1
+
             if not summary_only:
                 fig = plt.figure(figsize=self.figsize)
                 fig.patch.set_facecolor("#202124")
-                fig.canvas.manager.set_window_title("CDFs")
+                fig.canvas.manager.set_window_title(
+                    "Distribution" if distribution_plot else "CDFs"
+                )
                 fig.subplots_adjust(wspace=0.15)
                 plt.subplots_adjust(
                     left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.7
@@ -311,11 +307,13 @@ class AoATester:
                         errors["elevation_errors"], "Elevation {}".format(tag_id)
                     )
                     plot_num = plot_num + 1
-
-                img_name = "{}_{}_cdf.png".format(gt_key[0], gt_key[1])
+                if distribution_plot:
+                    img_name = "{}_{}_dist.png".format(gt_key[0], gt_key[1])
+                else:
+                    img_name = "{}_{}_cdf.png".format(gt_key[0], gt_key[1])
                 self.created_images.append(img_name)
                 plt.savefig(img_name)
-                if show_cdfs:
+                if show_plots:
                     plt.show()
                 else:
                     plt.clf()
@@ -324,13 +322,17 @@ class AoATester:
         plot_num = 1
         fig = plt.figure(figsize=self.figsize)
         fig.patch.set_facecolor("#202124")
-        fig.canvas.manager.set_window_title("CDFs")
+        fig.canvas.manager.set_window_title(
+            "Distribution" if distribution_plot else "CDFs"
+        )
         fig.subplots_adjust(wspace=0.15)
         plt.subplots_adjust(left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.7)
         plt.gcf().text(
             0.35,
             0.99,
-            "Per tag combined CDF",
+            "Per tag combined {}".format(
+                "distribution" if distribution_plot else "CDF"
+            ),
             va="top",
             fontsize=22,
         )
@@ -344,8 +346,10 @@ class AoATester:
                 all_errors_theta[tag_id], "Elevation {}".format(tag_id)
             )
             plot_num = plot_num + 1
-
-        img_name = "combined_cdf_per_tag.png".format(gt_key[0], gt_key[1])
+        if distribution_plot:
+            img_name = "combined_dist_per_tag.png".format(gt_key[0], gt_key[1])
+        else:
+            img_name = "combined_cdf_per_tag.png".format(gt_key[0], gt_key[1])
         self.created_images.append(img_name)
         plt.savefig(img_name)
         plt.show(block=False)
@@ -359,7 +363,9 @@ class AoATester:
         plt.gcf().text(
             0.30,
             0.99,
-            "All tags and positions combined CDF",
+            "All tags and positions combined {}".format(
+                "distribution" if distribution_plot else "CDF"
+            ),
             va="top",
             fontsize=22,
         )
@@ -373,8 +379,14 @@ class AoATester:
         create_and_style_cdf(all_errors_phi_combined, "For all tags azimuth")
         plt.subplot(2, 1, 2)
         create_and_style_cdf(all_errors_theta_combined, "For all tags theta")
-        plt.savefig("cdf_all_tags.png")
-        self.created_images.append("cdf_all_tags.png")
+
+        if distribution_plot:
+            img_name = "dist_all_tags.png"
+        else:
+            img_name = "cdf_all_tags.png"
+        plt.savefig(img_name)
+        self.created_images.append(img_name)
+
         plt.show()
 
     def create_pdf_report(self, name):
@@ -497,7 +509,7 @@ if __name__ == "__main__":
     antenna_controller.disable_antenna_control()
 
     tester.save_collected_data()
-    tester.create_cdf(False)
+    tester.create_plots(False)
 
     now = datetime.now()  # current date and time
     date_time = now.strftime("%d_%m_%Y-%H-%M")

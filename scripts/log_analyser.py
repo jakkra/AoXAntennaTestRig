@@ -60,14 +60,10 @@ if __name__ == "__main__":
                 )
         else:
             print("Skipping:", logfile)
-    analyzer.create_cdf(False, True)
+    analyzer.create_plots(show_plots=False, summary_only=True)
+    analyzer.create_plots(show_plots=False, summary_only=True, distribution_plot=True)
 
-    # now = datetime.now()  # current date and time
-    # date_time = now.strftime("%d_%m_%Y-%H-%M")
-    # pdf_report_name = "report_{}".format(date_time)
-    # print("Saving PDF: ", pdf_report_name)
-    # print("Note, it will take some time...")
-    # analyzer.create_pdf_report(pdf_report_name)
+    analyzer.create_pdf_report(os.path.join(args.log_dir, "log_analyzis_report"))
     analyzer.delete_created_images()
 
     print("Finished")

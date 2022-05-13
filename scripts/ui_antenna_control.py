@@ -130,7 +130,8 @@ class UIController:
                 self.antenna_controller.get_antenna_tilt(),
             )
             self.analyzer.save_collected_data()
-            self.analyzer.create_cdf()
+            self.analyzer.create_plots()
+            self.analyzer.create_plots(distribution_plot=True)
 
     def create_ui(self):
         self.window.geometry("350x275")
