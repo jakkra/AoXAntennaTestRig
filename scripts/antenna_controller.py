@@ -1,5 +1,5 @@
 from serial_helpers import open_port, close_port, send_command_and_wait_rsp, read_line
-
+import time
 
 class AntennaController:
     def __init__(self, port, baudrate, mock=False):

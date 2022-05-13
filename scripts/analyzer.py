@@ -57,6 +57,7 @@ class AoATester:
     def collect_angles(self, timeout_ms, do_plot, gt_azimuth, gt_elevation):
         if self.analyzer_only:
             raise Exception("Analyzer in analyzer_only mode, function not supported.")
+        self.locate_controller.flush_input_buffer() # Make sure no old angles are in the serial buffer
         self.locate_controller.enable_aoa()
         graph = None
         if do_plot:
@@ -230,6 +231,7 @@ class AoATester:
                 alpha=0.9,
                 color=cdf_color,
             )
+
             plt.title(title)
             if not distribution_plot:
                 plt.axvline(x=10)
@@ -480,8 +482,8 @@ if __name__ == "__main__":
     tester.start()
 
     # Note must be in even dividable steps
-    start_angle = -50
-    end_angle = 50
+    start_angle = -40
+    end_angle = 40
     steps = 10
     millies_per_angle = 10000
 
@@ -495,6 +497,7 @@ if __name__ == "__main__":
                     antenna_controller.get_antenna_location()[1],
                 )
             )
+            time.sleep(4) #Give angles some time to stabalize
             tester.collect_angles(
                 millies_per_angle,
                 True,

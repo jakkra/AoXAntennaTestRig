@@ -1,4 +1,4 @@
-from serial_helpers import open_port, close_port, send_command_and_wait_rsp, read_line
+from serial_helpers import open_port, close_port, send_command_and_wait_rsp, read_line, flush_input_buffer
 import numpy as np
 import time
 
@@ -20,18 +20,21 @@ class AoAController:
         self.disable_aoa()
 
     def enable_aoa(self):
-        if self.mock:
+        if not self.mock:
             return
         res = send_command_and_wait_rsp(self.ser_locate, "AT+UDFENABLE=1")
         if res == -1:
             raise Exception("Failed enabling u-connectLocate!")
 
     def disable_aoa(self):
-        if self.mock:
+        if not self.mock:
             return
-        res = send_command_and_wait_rsp(self.ser_locate, "AT+UDFENABLE=0")
+        res = send_command_and_wait_rsp(self.ser_locate, "AT+UDFENABLE=1")
         if res == -1:
             raise Exception("Failed disabling u-connectLocate!")
+
+    def flush_input_buffer(self):
+        flush_input_buffer(self.ser_locate)
 
     def wait_for_uudf(self):
         if self.mock:

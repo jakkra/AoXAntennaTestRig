@@ -51,3 +51,6 @@ def send_command_and_wait_rsp(ser, data, timeout=1):
 def read_line(ser):
     r = ser.readline().strip()
     return r.decode("unicode_escape")
+
+def flush_input_buffer(ser):
+    ser.flushInput()
