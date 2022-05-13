@@ -57,7 +57,7 @@ class AoATester:
     def collect_angles(self, timeout_ms, do_plot, gt_azimuth, gt_elevation):
         if self.analyzer_only:
             raise Exception("Analyzer in analyzer_only mode, function not supported.")
-        self.locate_controller.flush_input_buffer() # Make sure no old angles are in the serial buffer
+        self.locate_controller.flush_input_buffer()  # Make sure no old angles are in the serial buffer
         self.locate_controller.enable_aoa()
         graph = None
         if do_plot:
@@ -89,21 +89,22 @@ class AoATester:
                 else:
                     parsed_result[tag_id] = []
                     parsed_result[tag_id].append(urc_dict)
-
-                graph.add_tag_sample(
-                    tag_id,
-                    urc_dict["azimuth"]
-                    if not self.antenna_upside_down
-                    else -urc_dict["azimuth"],
-                    urc_dict["elevation"]
-                    if not self.antenna_upside_down
-                    else -urc_dict["elevation"],
-                    gt_azimuth,
-                    gt_elevation,
-                )
-        img = graph.save_snapshot_png("{}_{}".format(gt_azimuth, gt_elevation))
-        self.created_images.append(img)
-        graph.destroy()
+                if do_plot:
+                    graph.add_tag_sample(
+                        tag_id,
+                        urc_dict["azimuth"]
+                        if not self.antenna_upside_down
+                        else -urc_dict["azimuth"],
+                        urc_dict["elevation"]
+                        if not self.antenna_upside_down
+                        else -urc_dict["elevation"],
+                        gt_azimuth,
+                        gt_elevation,
+                    )
+        if do_plot:
+            img = graph.save_snapshot_png("{}_{}".format(gt_azimuth, gt_elevation))
+            self.created_images.append(img)
+            graph.destroy()
         # Save the result in a map with a tuple of azimuth and tilt as key
         self.collected_data[(gt_azimuth, gt_elevation)] = (
             raw_result,
@@ -211,44 +212,125 @@ class AoATester:
         self.collected_data = {}
         self.created_images = []
 
-    def create_plots(self, show_plots=True, summary_only=False, distribution_plot=False):
-        def create_and_style_cdf(data, title):
-            if not distribution_plot:
-                data = list(map(lambda angle: abs(angle), data))
-            cdf_color = "green"
-            if sum(i <= 10 for i in data) / len(data) < 0.9:
-                cdf_color = "red"
+    def plot_rssi_per_tag(self, all_rssi):
+        # Plot dist for all rssi per tag
+        plot_num = 1
+        fig = plt.figure(figsize=self.figsize)
+        fig.patch.set_facecolor("#202124")
+        fig.canvas.manager.set_window_title("RSSI distribution")
+        fig.subplots_adjust(wspace=0.15)
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.94, bottom=0.05, hspace=0.7)
+        plt.gcf().text(
+            0.35,
+            0.99,
+            "Per tag combined RSSI",
+            va="top",
+            fontsize=22,
+        )
+        for tag_id in all_rssi:
+            plt.subplot(6, 1, plot_num)
+            self.__create_and_style_cdf(
+                all_rssi[tag_id], "RSSI {}".format(tag_id), distribution_plot=True
+            )
+            plot_num = plot_num + 1
 
-            bins = range(min(data), max(data) + 1, 1)  # Equally distributed
+        img_name = "combined_rssi_per_tag.png"
+        self.created_images.append(img_name)
+        plt.savefig(img_name)
+        plt.show(block=False)
 
-            plt.hist(
-                data,
-                bins=bins,
-                density=True,
-                cumulative=not distribution_plot,
-                label="CDF",
-                histtype="bar",
-                alpha=0.9,
-                color=cdf_color,
+    def plot_mean_err_angle(self, all_phi, all_theta):
+        # Plot dist for all rssi per tag
+        plot_num = 1
+        fig = plt.figure(figsize=self.figsize)
+        fig.patch.set_facecolor("#202124")
+        fig.canvas.manager.set_window_title("Mean error per angle")
+        # fig.subplots_adjust(wspace=0.15)
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.94, bottom=0.05)
+        plt.gcf().text(
+            0.45,
+            0.99,
+            "Mean error",
+            va="top",
+            fontsize=22,
+        )
+
+        angles_x_values = sorted(list(all_phi.keys()))
+        error_phi_x_values = []
+        error_theta_x_values = []
+        for angle in angles_x_values:
+            error_phi_x_values.append(
+                np.mean(list(map(lambda angle: abs(angle), all_phi[angle])))
+            )
+            error_theta_x_values.append(
+                np.mean(list(map(lambda angle: abs(angle), all_theta[angle])))
             )
 
+        def style_plot(title):
             plt.title(title)
-            if not distribution_plot:
-                plt.axvline(x=10)
-            plt.xlabel("Angle error", {"color": "white"})
-            plt.ylabel("Percent", {"color": "white"})
-            if not distribution_plot:
-                plt.gca().set_xlim(0)
-                plt.gca().set_ylim(0, 1)
+            plt.xlabel("Angle", {"color": "white"})
+            plt.ylabel("Mean error", {"color": "white"})
             plt.gca().xaxis.label.set_color("white")
             plt.gca().yaxis.label.set_color("white")
             plt.gca().tick_params(axis="x", colors="white")
             plt.gca().tick_params(axis="y", colors="white")
             plt.gca().grid(alpha=0.4, color="#212F3D")
 
+        ax = plt.subplot(2, 1, 1)
+        style_plot("Azimuth")
+        ax.plot(angles_x_values, error_phi_x_values)
+        ax = plt.subplot(2, 1, 2)
+        style_plot("Theta")
+        ax.plot(angles_x_values, error_theta_x_values)
+        img_name = "mean_errors_per_angle.png"
+        self.created_images.append(img_name)
+        plt.savefig(img_name)
+        plt.show(block=False)
+
+    def __create_and_style_cdf(self, data, title, distribution_plot=False):
+        if not distribution_plot:
+            data = list(map(lambda angle: abs(angle), data))
+        cdf_color = "green"
+        if sum(i <= 10 for i in data) / len(data) < 0.9:
+            cdf_color = "red"
+
+        bins = range(min(data), max(data) + 1, 1)  # Equally distributed
+
+        plt.hist(
+            data,
+            bins=bins,
+            density=True,
+            cumulative=not distribution_plot,
+            label="CDF",
+            histtype="bar",
+            alpha=0.9,
+            color=cdf_color,
+        )
+
+        plt.title(title)
+        if not distribution_plot:
+            plt.axvline(x=10, color="blue", linestyle="-")
+            plt.axhline(y=0.9, color="blue", linestyle="-")
+        plt.xlabel("Angle error", {"color": "white"})
+        plt.ylabel("Percent", {"color": "white"})
+        if not distribution_plot:
+            plt.gca().set_xlim(0)
+            plt.gca().set_ylim(0, 1)
+        plt.gca().xaxis.label.set_color("white")
+        plt.gca().yaxis.label.set_color("white")
+        plt.gca().tick_params(axis="x", colors="white")
+        plt.gca().tick_params(axis="y", colors="white")
+        plt.gca().grid(alpha=0.4, color="#212F3D")
+
+    def create_plots(
+        self, show_plots=True, summary_only=False, distribution_plot=False
+    ):
         all_errors_phi = {}
         all_errors_theta = {}
         tags_errors = {}
+        all_rssi = {}
+        errors_per_angle_phi = {}
+        errors_per_angle_theta = {}
         # gt_key is a tuple (azimuth_gt, elevation_gt)
         for gt_key, logs_from_location in self.collected_data.items():
             # For each sample in location
@@ -267,6 +349,19 @@ class AoATester:
                         urcs,
                     )
                 )
+                all_rssi[tag_id] = (
+                    all_rssi[tag_id] if tag_id in all_rssi else []
+                ) + list(map(lambda urc: urc["rssi"], urcs))
+                errors_per_angle_phi[gt_key[0]] = (
+                    errors_per_angle_phi[gt_key[0]]
+                    if gt_key[0] in errors_per_angle_phi
+                    else []
+                ) + azimuth_error
+                errors_per_angle_theta[gt_key[1]] = (
+                    errors_per_angle_theta[gt_key[1]]
+                    if gt_key[1] in errors_per_angle_theta
+                    else []
+                ) + theta_error
                 all_errors_phi[tag_id] = (
                     all_errors_phi[tag_id] if tag_id in all_errors_phi else []
                 ) + azimuth_error
@@ -299,14 +394,18 @@ class AoATester:
 
                 for tag_id, errors in tags_errors.items():
                     plt.subplot(6, 2, plot_num)
-                    create_and_style_cdf(
-                        errors["azimuth_errors"], "Azimuth {}".format(tag_id)
+                    self.__create_and_style_cdf(
+                        errors["azimuth_errors"],
+                        "Azimuth {}".format(tag_id),
+                        distribution_plot,
                     )
                     plot_num = plot_num + 1
 
                     plt.subplot(6, 2, plot_num)
-                    create_and_style_cdf(
-                        errors["elevation_errors"], "Elevation {}".format(tag_id)
+                    self.__create_and_style_cdf(
+                        errors["elevation_errors"],
+                        "Elevation {}".format(tag_id),
+                        distribution_plot,
                     )
                     plot_num = plot_num + 1
                 if distribution_plot:
@@ -340,12 +439,16 @@ class AoATester:
         )
         for tag_id in all_errors_phi:
             plt.subplot(6, 2, plot_num)
-            create_and_style_cdf(all_errors_phi[tag_id], "Azimuth {}".format(tag_id))
+            self.__create_and_style_cdf(
+                all_errors_phi[tag_id], "Azimuth {}".format(tag_id), distribution_plot
+            )
             plot_num = plot_num + 1
 
             plt.subplot(6, 2, plot_num)
-            create_and_style_cdf(
-                all_errors_theta[tag_id], "Elevation {}".format(tag_id)
+            self.__create_and_style_cdf(
+                all_errors_theta[tag_id],
+                "Elevation {}".format(tag_id),
+                distribution_plot,
             )
             plot_num = plot_num + 1
         if distribution_plot:
@@ -355,6 +458,9 @@ class AoATester:
         self.created_images.append(img_name)
         plt.savefig(img_name)
         plt.show(block=False)
+        if distribution_plot:
+            self.plot_rssi_per_tag(all_rssi)
+            self.plot_mean_err_angle(errors_per_angle_phi, errors_per_angle_theta)
 
         # Plot CDF for all tags combined
         fig = plt.figure(figsize=self.figsize)
@@ -378,9 +484,13 @@ class AoATester:
         all_errors_theta_combined = [
             item for sublist in list(all_errors_theta.values()) for item in sublist
         ]
-        create_and_style_cdf(all_errors_phi_combined, "For all tags azimuth")
+        self.__create_and_style_cdf(
+            all_errors_phi_combined, "For all tags azimuth", distribution_plot
+        )
         plt.subplot(2, 1, 2)
-        create_and_style_cdf(all_errors_theta_combined, "For all tags theta")
+        self.__create_and_style_cdf(
+            all_errors_theta_combined, "For all tags theta", distribution_plot
+        )
 
         if distribution_plot:
             img_name = "dist_all_tags.png"
@@ -497,10 +607,10 @@ if __name__ == "__main__":
                     antenna_controller.get_antenna_location()[1],
                 )
             )
-            time.sleep(4) #Give angles some time to stabalize
+            time.sleep(4)  # Give angles some time to stabalize
             tester.collect_angles(
                 millies_per_angle,
-                True,
+                False,
                 antenna_controller.get_antenna_rotation(),
                 antenna_controller.get_antenna_tilt(),
             )
@@ -512,7 +622,8 @@ if __name__ == "__main__":
     antenna_controller.disable_antenna_control()
 
     tester.save_collected_data()
-    tester.create_plots(False)
+    tester.create_plots(show_plots=False, summary_only=True)
+    tester.create_plots(show_plots=False, summary_only=True, distribution_plot=True)
 
     now = datetime.now()  # current date and time
     date_time = now.strftime("%d_%m_%Y-%H-%M")

@@ -45,7 +45,7 @@ if __name__ == "__main__":
     logs = glob.glob(args.log_dir + "/*.log")
     if len(logs) == 0:
         print("No log files found in {}".format(args.log_dir))
-
+    total_num_packets = 0
     for logfile in logs:
         filename = Path(logfile).name
         ant_rotation = int(filename.split("_")[0])
@@ -55,6 +55,8 @@ if __name__ == "__main__":
         ):
             with open(logfile) as fp:
                 data = fp.readlines()
+                data = data[15:]
+                total_num_packets = total_num_packets + len(data)
                 analyzer.analyze_logs(
                     data, False, ant_rotation, antenna_tilt, args.remove_90
                 )
@@ -63,7 +65,11 @@ if __name__ == "__main__":
     analyzer.create_plots(show_plots=False, summary_only=True)
     analyzer.create_plots(show_plots=False, summary_only=True, distribution_plot=True)
 
-    analyzer.create_pdf_report(os.path.join(args.log_dir, "log_analyzis_report"))
+    analyzer.create_pdf_report(
+        os.path.join(
+            args.log_dir, "log_analyzis_report_{}_packets".format(total_num_packets)
+        )
+    )
     analyzer.delete_created_images()
 
-    print("Finished")
+    print("Finished. Total packets: {}".format(total_num_packets))

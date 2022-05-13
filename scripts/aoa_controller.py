@@ -1,4 +1,10 @@
-from serial_helpers import open_port, close_port, send_command_and_wait_rsp, read_line, flush_input_buffer
+from serial_helpers import (
+    open_port,
+    close_port,
+    send_command_and_wait_rsp,
+    read_line,
+    flush_input_buffer,
+)
 import numpy as np
 import time
 

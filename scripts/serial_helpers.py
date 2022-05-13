@@ -52,5 +52,6 @@ def read_line(ser):
     r = ser.readline().strip()
     return r.decode("unicode_escape")
 
+
 def flush_input_buffer(ser):
     ser.flushInput()
