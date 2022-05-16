@@ -71,16 +71,10 @@ class AoATester:
         while (
             self.current_milli_time() < startTime + timeout_ms
         ) and self.collecting_data:
-            urc = self.locate_controller.wait_for_uudf()
-            if len(urc) > 0:
-                if "+STARTUP" in urc:
-                    raise Exception("Module crash detected")
-                try:
-                    urc_dict = self.parse_uudf(urc)
-                    if urc_dict == None:
-                        continue
-                except:
-                    continue
+            data = self.locate_controller.wait_for_aoa_event()
+            if data[1] != None:
+                urc = data[0]
+                urc_dict = data[1]
                 # If we successfully parsed event then save it
                 raw_result.append(urc)
                 tag_id = urc_dict["instanceId"]
@@ -173,31 +167,6 @@ class AoATester:
             parsed_result,
         )
         return (raw_result, parsed_result)
-
-    def parse_uudf(self, urc_str):
-        splitted = urc_str.find(":")
-
-        urc, r = urc_str[:splitted], urc_str[splitted:]
-        if urc.upper() != "+UUDF":
-            return None
-
-        urc_params = r.split(",")
-        instanceId = urc_params[0][1:]
-        if len(instanceId) != 12:
-            return None
-
-        urc_dict = {
-            "instanceId": instanceId,
-            "rssi": int(urc_params[1]),
-            "azimuth": int(urc_params[2]),
-            "elevation": int(urc_params[3]),
-            "rssi2": int(urc_params[4]),
-            "channel": int(urc_params[5]),
-            "anchor_id": urc_params[6].replace('"', ""),
-            "user_defined_str": urc_params[7].replace('"', ""),
-            "timestamp_ms": int(urc_params[8]),
-        }
-        return urc_dict
 
     def current_milli_time(self):
         return round(time.time() * 1000)
