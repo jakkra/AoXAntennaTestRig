@@ -4,7 +4,7 @@ import numpy as np
 
 
 class LivePlotAnchor:
-    def __init__(self, max_anchors=6):
+    def __init__(self, max_anchors, close_event_callback):
         self.plot_hist_length = 100
         self.x = np.linspace(0, self.plot_hist_length)
         self.X, self.Y = np.meshgrid(self.x, self.x)
@@ -14,12 +14,15 @@ class LivePlotAnchor:
         self.fig.subplots_adjust(wspace=0.09)
         self.redraw_counter = 0
         self.max_anchors = max_anchors
+        self.close_event_callback = close_event_callback
 
         # Adjust the padding around all subplots
         plt.subplots_adjust(left=0.05, right=0.95, top=0.95, bottom=0.05, hspace=0.6)
         self.anchors = {}
 
-        self.stats_plt = self.fig.add_subplot(self.max_anchors, 2, 2 * self.max_anchors, title="Stats")
+        self.stats_plt = self.fig.add_subplot(
+            self.max_anchors, 2, 2 * self.max_anchors, title="Stats"
+        )
         self.stats_plt.set_axis_off()
         self.text_stats = self.stats_plt.text(
             0,
@@ -34,6 +37,12 @@ class LivePlotAnchor:
         self.fig.canvas.draw()  # note that the first draw comes before setting data
 
         self.stats_pltbackground = self.fig.canvas.copy_from_bbox(self.stats_plt.bbox)
+
+        def closed(event):
+            close_event_callback()
+
+        self.fig.canvas.mpl_connect("close_event", closed)
+
         plt.show(block=False)
 
     def add_anchor_sample(self, anchor_id, azimuth, elevation):
@@ -43,7 +52,7 @@ class LivePlotAnchor:
                 self.fig,
                 self.plot_hist_length,
                 len(self.anchors),
-                self.max_anchors
+                self.max_anchors,
             )
             self.fig.canvas.draw()
         # Redrawing on every sample will cause delays.
@@ -52,8 +61,10 @@ class LivePlotAnchor:
         do_redraw = True if self.redraw_counter % 5 == 0 else False
         self.anchors[anchor_id].add_data(azimuth, elevation, do_redraw)
 
-        if do_redraw:
-            stats_text = "Anchor\t\t\tMean Azimuth\tMean Elevation\tNum Angles\n".expandtabs()
+        if do_redraw and plt.fignum_exists(self.fig.number):
+            stats_text = (
+                "Anchor\t\t\tMean Azimuth\tMean Elevation\tNum Angles\n".expandtabs()
+            )
             stats_text = stats_text + "-" * 100 + "\n"
             for id, tag in self.anchors.items():
                 azim_data = tag.get_azimuth_data()
@@ -99,12 +110,8 @@ class LivePlotAnchor:
             self.fig = fig
             self.max_data_len = max_data_len
 
-            self.azim_plt = self.fig.add_subplot(
-                max_anchors, 2, index * 2 + 1
-            )
-            self.elev_plt = self.fig.add_subplot(
-                max_anchors, 2, index * 2 + 2
-            )
+            self.azim_plt = self.fig.add_subplot(max_anchors, 2, index * 2 + 1)
+            self.elev_plt = self.fig.add_subplot(max_anchors, 2, index * 2 + 2)
 
             self.azim_plt.set_facecolor("#65494c")
             self.azim_plt.tick_params(axis="x", colors="white")
@@ -184,14 +191,10 @@ class LivePlotAnchor:
             self.fig.canvas.restore_region(self.azim_plt_background)
             self.fig.canvas.restore_region(self.elev_plt_background)
 
-            self.text_azim.set_text(
-                "Angle: {}".format(azimuth)
-            )
-            self.text_elev.set_text(
-                "Angle: {}".format(elevation)
-            )
+            self.text_azim.set_text("Angle: {}".format(azimuth))
+            self.text_elev.set_text("Angle: {}".format(elevation))
 
-            if redraw:
+            if redraw and plt.fignum_exists(self.fig.number):
                 # redraw just the points
                 self.elev_plt.draw_artist(self.elevation_line)
                 self.azim_plt.draw_artist(self.azimuth_line)
