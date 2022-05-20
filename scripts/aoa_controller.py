@@ -10,6 +10,7 @@ import time
 import json
 import base64
 
+
 class AoAController:
     def __init__(self, port, baudrate, ctsrts, mock=False):
         self.port = port
@@ -114,13 +115,15 @@ class AoAController:
             "anchor_id": dbg_evt["a_id"].replace('"', ""),
             "user_defined_str": "",
             "timestamp_ms": int(dbg_evt["ms"]),
-            "iqs": self.parse_iqs(dbg_evt["iq_b64"])
+            "iqs": self.parse_iqs(dbg_evt["iq_b64"]),
         }
         return urc_dict
 
     def parse_iqs(self, iq_b64):
         decoded = base64.b64decode(iq_b64)
-        decoded = list(map(lambda val: str(val if val < 127 else (256-val) * (-1)), decoded))
+        decoded = list(
+            map(lambda val: str(val if val < 127 else (256 - val) * (-1)), decoded)
+        )
         # Make sure we got correct amount of I+Qs. 82 samples, I+Q for each sample.
         if len(decoded) != 82 * 2:
             raise Exception("Wrong amount of IQs")
