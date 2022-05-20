@@ -9,7 +9,7 @@ from fpdf import FPDF
 import os
 import glob
 from antenna_controller import AntennaController
-from aoa_controller import AoAController
+from aoa_controller import AoAController, parse_uudf
 import shutil
 import tkinter as tk
 from live_plot import LivePlot
@@ -107,7 +107,7 @@ class AoATester:
         return (raw_result, parsed_result)
 
     def analyze_logs(
-        self, log_file, do_plot, gt_azimuth, gt_elevation, remove_90=False
+        self, log_file, do_plot, gt_azimuth, gt_elevation, remove_90=False, swap_phi_theta=False
     ):
         graph = None
         if do_plot:
@@ -119,7 +119,7 @@ class AoATester:
         tag_angles = {}
 
         for urc in log_file:
-            urc_dict = self.parse_uudf(urc)
+            urc_dict = parse_uudf(urc)
             if urc_dict == None:
                 continue
             if remove_90 and (
@@ -127,7 +127,11 @@ class AoATester:
             ):
                 print("Drop: {}, {}".format(urc_dict["azimuth"], urc_dict["elevation"]))
                 continue
-
+            if swap_phi_theta:
+                azimuth = urc_dict["azimuth"]
+                elevation = urc_dict["elevation"]
+                urc_dict["azimuth"] = elevation
+                urc_dict["elevation"] = azimuth
             # If we successfully parsed event then save it
             tag_id = urc_dict["instanceId"]
             raw_result.append(urc)
@@ -511,6 +515,7 @@ if __name__ == "__main__":
         required=True,
         help="Serial port of u-connectLocate module.",
     )
+
     parser.add_argument(
         "--locate_baudrate",
         dest="locate_baudrate",
@@ -533,6 +538,14 @@ if __name__ == "__main__":
         default=False,
         required=False,
         help="Open a window displaying the webcam, can be used to monitor when running remotely.",
+    )
+
+    parser.add_argument(
+        "--name",
+        dest="name",
+        required=False,
+        default="",
+        help="Name identifying the measurement",
     )
 
     args = parser.parse_args()
@@ -561,34 +574,41 @@ if __name__ == "__main__":
     tester.start()
 
     # Note must be in even dividable steps
-    start_angle = -40
-    end_angle = 40
-    steps = 10
+    start_angle = -60
+    end_angle = 60
+    steps = 20
     millies_per_angle = 10000
-
-    antenna_controller.rotate_antenna(start_angle)
-    for azimuth_angle in range(start_angle, end_angle + 1, steps):
-        antenna_controller.tilt_antenna(start_angle)
-        for tilt_angle in range(start_angle, end_angle + 1, steps):
-            print(
-                "Sample azimuth: {}, tilt: {}".format(
-                    antenna_controller.get_antenna_location()[0],
-                    antenna_controller.get_antenna_location()[1],
+    if False:
+        antenna_controller.rotate_antenna(start_angle)
+        for azimuth_angle in range(start_angle, end_angle + 1, steps):
+            antenna_controller.tilt_antenna(start_angle)
+            for tilt_angle in range(start_angle, end_angle + 1, steps):
+                print(
+                    "Sample azimuth: {}, tilt: {}".format(
+                        antenna_controller.get_antenna_location()[0],
+                        antenna_controller.get_antenna_location()[1],
+                    )
                 )
-            )
-            time.sleep(4)  # Give angles some time to stabalize
-            tester.collect_angles(
-                millies_per_angle,
-                False,
-                antenna_controller.get_antenna_rotation(),
-                antenna_controller.get_antenna_tilt(),
-            )
-            antenna_controller.tilt_antenna(steps)
-        antenna_controller.tilt_antenna(start_angle - steps)
-        antenna_controller.rotate_antenna(steps)
+                time.sleep(4)  # Give angles some time to stabalize
+                tester.collect_angles(
+                    millies_per_angle,
+                    False,
+                    antenna_controller.get_antenna_rotation(),
+                    antenna_controller.get_antenna_tilt(),
+                )
+                antenna_controller.tilt_antenna(steps)
+            antenna_controller.tilt_antenna(start_angle - steps)
+            antenna_controller.rotate_antenna(steps)
 
-    antenna_controller.rotate_antenna(start_angle - steps)
-    antenna_controller.disable_antenna_control()
+        antenna_controller.rotate_antenna(start_angle - steps)
+        antenna_controller.disable_antenna_control()
+    else:
+        tester.collect_angles(
+            millies_per_angle,
+            False,
+            antenna_controller.get_antenna_rotation(),
+            antenna_controller.get_antenna_tilt(),
+        )
 
     tester.save_collected_data()
     tester.create_plots(show_plots=False, summary_only=True)
@@ -596,7 +616,7 @@ if __name__ == "__main__":
 
     now = datetime.now()  # current date and time
     date_time = now.strftime("%d_%m_%Y-%H-%M")
-    measurement_name = "report_{}".format(date_time)
+    measurement_name = "report_{}_{}".format(date_time, args.name)
 
     # Move all log files into a folder
     current_dir_path = os.path.dirname(os.path.realpath(__file__))
