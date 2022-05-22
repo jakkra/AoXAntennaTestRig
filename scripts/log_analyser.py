@@ -37,11 +37,29 @@ if __name__ == "__main__":
         help="Drop all angles utside of the range [-max_angle, max_angle].",
     )
 
+    parser.add_argument(
+        "--antenna_upsidedown",
+        dest="antenna_upsidedown",
+        action="store_true",
+        default=False,
+        required=False,
+        help="If antenna is upsidedown",
+    )
+
+    parser.add_argument(
+        "--swap_angles",
+        dest="swap_angles",
+        action="store_true",
+        default=False,
+        required=False,
+        help="If azimuth and elevation should be swapped",
+    )
+
     args = parser.parse_args()
     print("Max angle:", args.max_angle)
     print("Log dir:", args.log_dir)
 
-    analyzer = AoATester(None, None, None, False, False, True)
+    analyzer = AoATester(None, None, None, args.antenna_upsidedown, False, True)
     logs = glob.glob(args.log_dir + "/*.log")
     if len(logs) == 0:
         print("No log files found in {}".format(args.log_dir))
@@ -58,7 +76,7 @@ if __name__ == "__main__":
                 data = data[15:]
                 total_num_packets = total_num_packets + len(data)
                 analyzer.analyze_logs(
-                    data, False, ant_rotation, antenna_tilt, args.remove_90
+                    data, True, ant_rotation, antenna_tilt, args.remove_90, args.swap_angles
                 )
         else:
             print("Skipping:", logfile)
