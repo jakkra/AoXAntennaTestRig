@@ -15,7 +15,6 @@ import tkinter as tk
 from live_plot import LivePlot
 from webcam_window import WebcamWindow
 
-
 class AoATester:
     def __init__(
         self,
@@ -40,6 +39,7 @@ class AoATester:
         self.azimuth_angle = 0
         self.tilt_angle = 0
         self.collecting_data = False
+        self.mock = mock
 
         self.figsize = (12, 10)
 
@@ -57,8 +57,9 @@ class AoATester:
     def collect_angles(self, timeout_ms, do_plot, gt_azimuth, gt_elevation):
         if self.analyzer_only:
             raise Exception("Analyzer in analyzer_only mode, function not supported.")
-        self.locate_controller.flush_input_buffer()  # Make sure no old angles are in the serial buffer
-        self.locate_controller.enable_aoa()
+        if not self.mock:
+            self.locate_controller.flush_input_buffer()  # Make sure no old angles are in the serial buffer
+            self.locate_controller.enable_aoa()
         graph = None
         if do_plot:
             graph = LivePlot(self.figsize, gt_azimuth, gt_elevation)
