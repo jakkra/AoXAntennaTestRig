@@ -54,4 +54,4 @@ def read_line(ser):
 
 
 def flush_input_buffer(ser):
-    ser.flushInput()
+    ser.reset_input_buffer()

@@ -574,11 +574,11 @@ if __name__ == "__main__":
     tester.start()
 
     # Note must be in even dividable steps
-    start_angle = -60
-    end_angle = 60
+    start_angle = -40
+    end_angle = 40
     steps = 20
     millies_per_angle = 10000
-    if False:
+    if True:
         antenna_controller.rotate_antenna(start_angle)
         for azimuth_angle in range(start_angle, end_angle + 1, steps):
             antenna_controller.tilt_antenna(start_angle)
@@ -589,7 +589,7 @@ if __name__ == "__main__":
                         antenna_controller.get_antenna_location()[1],
                     )
                 )
-                time.sleep(4)  # Give angles some time to stabalize
+                time.sleep(2)  # Give angles some time to stabalize
                 tester.collect_angles(
                     millies_per_angle,
                     False,
