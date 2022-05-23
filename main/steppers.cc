@@ -3,26 +3,16 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-
 #include "FastAccelStepper.h"
 
-static char* TAG = "steppers";
-
-#define MAX_NUM_STEPPERS    2
-#define NUM_STEPPERS        1
-#define STEPS_PER_REV       (400 * 8) // Steppers are 0.9 degree 400 steps per rotation and using 8 microstepping.
-
-#define STEP_DELAY          15
-
-// Stepper config
+// Stepper config. Gears are 3:1 ratio and the used stepper motots are 400 steps per revolution.
+// Stepper drivers are set to 8 micro steps.
 #define DEG_PER_STEP 0.9
 #define GEAR_RATIO 3
 #define MICRO_STEPS 8
 
 #define ROTATE_DEG_PER_STEP (DEG_PER_STEP / GEAR_RATIO / MICRO_STEPS)
 #define TILT_DEG_PER_STEP (DEG_PER_STEP / GEAR_RATIO / MICRO_STEPS)
-//PAN_RAD_PER_STEP = ROTATE_DEG_PER_STEP * M_PI / 180
-//TILT_RAD_PER_STEP = TILT_DEG_PER_STEP * M_PI / 180
 
 #define STEPS_PER_ROTATION ((360 / DEG_PER_STEP) * MICRO_STEPS * GEAR_RATIO)
 

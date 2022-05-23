@@ -66,11 +66,13 @@ class AoAController:
 
             return ("", None)
 
+
 def parse_event(line):
     if line.startswith("+UUDF"):
         return parse_uudf(line)
     if line.startswith('{"id"'):  # Raw IQ debug mode format
         return parse_debug_json(line)
+
 
 def parse_uudf(urc_str):
     splitted = urc_str.find(":")
@@ -97,6 +99,7 @@ def parse_uudf(urc_str):
     }
     return urc_dict
 
+
 def parse_debug_json(dbg_json):
     dbg_evt = json.loads(dbg_json)
     instanceId = dbg_evt["id"].replace('"', "")
@@ -117,6 +120,7 @@ def parse_debug_json(dbg_json):
         "iqs": parse_iqs(dbg_evt["iq_b64"]),
     }
     return urc_dict
+
 
 def parse_iqs(self, iq_b64):
     decoded = base64.b64decode(iq_b64)

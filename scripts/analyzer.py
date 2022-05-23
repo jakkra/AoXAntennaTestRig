@@ -107,7 +107,13 @@ class AoATester:
         return (raw_result, parsed_result)
 
     def analyze_logs(
-        self, log_file, do_plot, gt_azimuth, gt_elevation, remove_90=False, swap_phi_theta=False
+        self,
+        log_file,
+        do_plot,
+        gt_azimuth,
+        gt_elevation,
+        remove_90=False,
+        swap_phi_theta=False,
     ):
         graph = None
         if do_plot:

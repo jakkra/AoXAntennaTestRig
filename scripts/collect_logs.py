@@ -26,7 +26,7 @@ class AngleCollector:
         locate_port2,
         locate_baudrate2,
         locate_ctsrts2,
-        antenna_upside_down
+        antenna_upside_down,
     ):
         self.locate_controller_1 = AoAController(
             locate_port1, locate_baudrate1, locate_ctsrts1, False
@@ -50,7 +50,9 @@ class AngleCollector:
     def stop_collect_angles(self):
         self.collecting_data = False
 
-    def __collect_angles(self, locate_controller, timeout_ms, index, gt_azimuth, gt_elevation):
+    def __collect_angles(
+        self, locate_controller, timeout_ms, index, gt_azimuth, gt_elevation
+    ):
         startTime = self.current_milli_time()
         raw_result = []
         parsed_result = {}
@@ -71,7 +73,7 @@ class AngleCollector:
                     parsed_result[tag_id] = []
                     parsed_result[tag_id].append(urc_dict)
         # Save the result in a map with a tuple of azimuth and tilt as key
-        if (index == 0):
+        if index == 0:
             self.collected_data1[(gt_azimuth, gt_elevation)] = (
                 raw_result,
                 parsed_result,
@@ -90,13 +92,18 @@ class AngleCollector:
 
         self.collecting_data = True
 
-        thread1 = Thread(target=self.__collect_angles,args=(self.locate_controller_1, timeout_ms, 0, gt_azimuth, gt_elevation))
-        thread2 = Thread(target=self.__collect_angles,args=(self.locate_controller_2, timeout_ms, 1, gt_azimuth, gt_elevation))
+        thread1 = Thread(
+            target=self.__collect_angles,
+            args=(self.locate_controller_1, timeout_ms, 0, gt_azimuth, gt_elevation),
+        )
+        thread2 = Thread(
+            target=self.__collect_angles,
+            args=(self.locate_controller_2, timeout_ms, 1, gt_azimuth, gt_elevation),
+        )
         thread1.start()
         thread2.start()
         thread1.join()
         thread2.join()
-
 
     def current_milli_time(self):
         return round(time.time() * 1000)
@@ -107,17 +114,25 @@ class AngleCollector:
         measurement_name1 = "report_{}_antenna1".format(date_time)
         measurement_name2 = "report_{}_antenna2".format(date_time)
 
-        current_dir_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), measurement_name1)
+        current_dir_path = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), measurement_name1
+        )
         os.makedirs(current_dir_path)
         for key, log in self.collected_data1.items():
-            with open(os.path.join(current_dir_path, "{}_{}.log".format(key[0], key[1])), "w") as data_file:
+            with open(
+                os.path.join(current_dir_path, "{}_{}.log".format(key[0], key[1])), "w"
+            ) as data_file:
                 for line in log[0]:
                     data_file.write(line + "\n")
 
-        current_dir_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), measurement_name2)
+        current_dir_path = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), measurement_name2
+        )
         os.makedirs(current_dir_path)
         for key, log in self.collected_data2.items():
-            with open(os.path.join(current_dir_path, "{}_{}.log".format(key[0], key[1])), "w") as data_file:
+            with open(
+                os.path.join(current_dir_path, "{}_{}.log".format(key[0], key[1])), "w"
+            ) as data_file:
                 for line in log[0]:
                     data_file.write(line + "\n")
 
@@ -199,7 +214,7 @@ if __name__ == "__main__":
         args.locate_port2,
         args.locate_baudrate,
         args.ctsrts,
-        True
+        True,
     )
 
     print("Successfully set up communication")
@@ -243,6 +258,5 @@ if __name__ == "__main__":
         )
 
     angle_collector.save_collected_data()
-
 
     print("Finished")

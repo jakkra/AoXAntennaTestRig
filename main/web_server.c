@@ -13,7 +13,6 @@
 #define WS_SERVER_PORT          8080
 #define MAX_WS_INCOMING_SIZE    1024
 #define MAX_WS_CONNECTIONS      1
-#define INVALID_FD              -1
 #define MAX_TX_BUF_SIZE         512
 
 typedef struct web_server {

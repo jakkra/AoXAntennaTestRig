@@ -76,7 +76,12 @@ if __name__ == "__main__":
                 data = data[15:]
                 total_num_packets = total_num_packets + len(data)
                 analyzer.analyze_logs(
-                    data, True, ant_rotation, antenna_tilt, args.remove_90, args.swap_angles
+                    data,
+                    True,
+                    ant_rotation,
+                    antenna_tilt,
+                    args.remove_90,
+                    args.swap_angles,
                 )
         else:
             print("Skipping:", logfile)
