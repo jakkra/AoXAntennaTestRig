@@ -73,7 +73,6 @@ if __name__ == "__main__":
         ):
             with open(logfile) as fp:
                 data = fp.readlines()
-                data = data[15:]
                 total_num_packets = total_num_packets + len(data)
                 analyzer.analyze_logs(
                     data,
