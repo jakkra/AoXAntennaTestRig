@@ -133,3 +133,23 @@ usage: log_analyzer.py [-h] [--log_dir LOG_DIR] [--remove_90 REMOVE_90]
 ||`--max_angle`|`90`|Drop all angles utside of the range [-max_angle, max_angle].|
 ||`--antenna_upsidedown`||If antenna is upsidedown|
 ||`--swap_angles`||If azimuth and elevation should be swapped|
+
+### collect_logs.py
+Collects logs from one or multiple antennas at once. Collected logs can then be analyzed using `python log_analyser.py --log_dir the_path`.
+```bash
+usage: collect_logs.py [-h] --controller_port CONTROLLER_PORT
+               [--controller_baudrate CONTROLLER_BAUDRATE] --locate_ports
+               LOCATE_PORTS [LOCATE_PORTS ...]
+               [--locate_baudrate LOCATE_BAUDRATE] [--no-flow] [--name NAME]
+
+```
+
+|short|long|default|help|
+| :--- | :--- | :--- | :--- |
+|`-h`|`--help`||show this help message and exit|
+||`--controller_port`|`None`|Serial port of the antenna controller.|
+||`--controller_baudrate`|`115200`|Baudrate of antenna controller|
+||`--locate_ports`|`None`|List of serial ports of u-connectLocate modules.|
+||`--locate_baudrate`|`115200`|Baudrate for u-connectLocate. Note all needs to have same baudrate.|
+||`--no-flow`||Flag to disable flow control for u-connectLocate, needed to run tests if CTS/RTS are not connected.|
+||`--names`|`[]`|List of name identifying the measurements. Should be same length as --locate_ports.|

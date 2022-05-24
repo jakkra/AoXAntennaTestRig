@@ -20,32 +20,26 @@ from threading import Thread
 class AngleCollector:
     def __init__(
         self,
-        locate_port1,
-        locate_baudrate1,
-        locate_ctsrts1,
-        locate_port2,
-        locate_baudrate2,
-        locate_ctsrts2,
+        locate_ports,
+        locate_baudrate,
+        locate_ctsrts,
         antenna_upside_down,
     ):
-        self.locate_controller_1 = AoAController(
-            locate_port1, locate_baudrate1, locate_ctsrts1, False
-        )
-
-        self.locate_controller_2 = AoAController(
-            locate_port2, locate_baudrate2, locate_ctsrts2, False
-        )
+        self.locate_controllers = []
+        self.collected_data = []
+        for port in locate_ports:
+            self.locate_controllers.append(
+                AoAController(port, locate_baudrate, locate_ctsrts, False)
+            )
+            self.collected_data.append({})
 
         self.antenna_upside_down = antenna_upside_down
 
         self.collecting_data = False
 
-        self.collected_data1 = {}
-        self.collected_data2 = {}
-
     def start(self):
-        self.locate_controller_1.start()
-        self.locate_controller_2.start()
+        for locate in self.locate_controllers:
+            locate.start()
 
     def stop_collect_angles(self):
         self.collecting_data = False
@@ -72,73 +66,59 @@ class AngleCollector:
                 else:
                     parsed_result[tag_id] = []
                     parsed_result[tag_id].append(urc_dict)
+
         # Save the result in a map with a tuple of azimuth and tilt as key
-        if index == 0:
-            self.collected_data1[(gt_azimuth, gt_elevation)] = (
-                raw_result,
-                parsed_result,
-            )
-        else:
-            self.collected_data2[(gt_azimuth, gt_elevation)] = (
-                raw_result,
-                parsed_result,
-            )
+        self.collected_data[index][(gt_azimuth, gt_elevation)] = (
+            raw_result,
+            parsed_result,
+        )
 
     def collect_angles(self, timeout_ms, do_plot, gt_azimuth, gt_elevation):
-        self.locate_controller_1.flush_input_buffer()
-        self.locate_controller_2.flush_input_buffer()
-        self.locate_controller_1.enable_aoa()
-        self.locate_controller_2.enable_aoa()
-
         self.collecting_data = True
+        threads = []
+        for idx, locate in enumerate(self.locate_controllers):
+            locate.flush_input_buffer()
+            locate.enable_aoa()
+            thread = Thread(
+                target=self.__collect_angles,
+                args=(locate, timeout_ms, idx, gt_azimuth, gt_elevation),
+            )
+            thread.daemon = True
+            thread.start()
+            threads.append(thread)
 
-        thread1 = Thread(
-            target=self.__collect_angles,
-            args=(self.locate_controller_1, timeout_ms, 0, gt_azimuth, gt_elevation),
-        )
-        thread2 = Thread(
-            target=self.__collect_angles,
-            args=(self.locate_controller_2, timeout_ms, 1, gt_azimuth, gt_elevation),
-        )
-        thread1.start()
-        thread2.start()
-        thread1.join()
-        thread2.join()
+        for thread in threads:
+            try:
+                while thread.is_alive():
+                    thread.join(1)  # time out not to block KeyboardInterrupt
+            except KeyboardInterrupt:
+                print("Ctrl+C exit")
+                sys.exit(1)
 
     def current_milli_time(self):
         return round(time.time() * 1000)
 
-    def save_collected_data(self):
+    def save_collected_data(self, identifiers=[]):
         now = datetime.now()  # current date and time
         date_time = now.strftime("%d_%m_%Y-%H-%M")
-        measurement_name1 = "report_{}_antenna1".format(date_time)
-        measurement_name2 = "report_{}_antenna2".format(date_time)
 
-        current_dir_path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), measurement_name1
-        )
-        os.makedirs(current_dir_path)
-        for key, log in self.collected_data1.items():
-            with open(
-                os.path.join(current_dir_path, "{}_{}.log".format(key[0], key[1])), "w"
-            ) as data_file:
-                for line in log[0]:
-                    data_file.write(line + "\n")
+        for i, samples in enumerate(self.collected_data):
+            if (len(identifiers) == len(self.collected_data)):
+                measurement_name = "report_{}_antenna_{}".format(date_time, identifiers[i])
+            else:
+                measurement_name = "report_{}_antenna_{}".format(date_time, i)
 
-        current_dir_path = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), measurement_name2
-        )
-        os.makedirs(current_dir_path)
-        for key, log in self.collected_data2.items():
-            with open(
-                os.path.join(current_dir_path, "{}_{}.log".format(key[0], key[1])), "w"
-            ) as data_file:
-                for line in log[0]:
-                    data_file.write(line + "\n")
-
-    def clear_collected_data(self):
-        self.collected_data1 = {}
-        self.collected_data2 = {}
+            current_dir_path = os.path.join(
+                os.path.dirname(os.path.realpath(__file__)), measurement_name
+            )
+            os.makedirs(current_dir_path)
+            for key, log in samples.items():
+                with open(
+                    os.path.join(current_dir_path, "{}_{}.log".format(key[0], key[1])),
+                    "w",
+                ) as data_file:
+                    for line in log[0]:
+                        data_file.write(line + "\n")
 
 
 if __name__ == "__main__":
@@ -159,17 +139,11 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--locate_port1",
-        dest="locate_port1",
+        "--locate_ports",
+        dest="locate_ports",
+        nargs="+",
         required=True,
-        help="Serial port of u-connectLocate module.",
-    )
-
-    parser.add_argument(
-        "--locate_port2",
-        dest="locate_port2",
-        required=True,
-        help="Serial port of u-connectLocate module.",
+        help="List of serial ports of u-connectLocate modules.",
     )
 
     parser.add_argument(
@@ -177,7 +151,7 @@ if __name__ == "__main__":
         dest="locate_baudrate",
         default=115200,
         required=False,
-        help="Baudrate for u-connectLocate.",
+        help="Baudrate for u-connectLocate. Note all needs to have same baudrate.",
     )
 
     parser.add_argument(
@@ -188,11 +162,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--name",
-        dest="name",
+        "--names",
+        dest="names",
         required=False,
-        default="",
-        help="Name identifying the measurement",
+        nargs="+",
+        default=[],
+        help="List of name identifying the measurements. Should be same length as --locate_ports",
     )
 
     args = parser.parse_args()
@@ -208,10 +183,7 @@ if __name__ == "__main__":
     antenna_controller.enable_antenna_control()
 
     angle_collector = AngleCollector(
-        args.locate_port1,
-        args.locate_baudrate,
-        args.ctsrts,
-        args.locate_port2,
+        args.locate_ports,
         args.locate_baudrate,
         args.ctsrts,
         True,
@@ -225,7 +197,7 @@ if __name__ == "__main__":
     end_angle = 40
     steps = 20
     millies_per_angle = 7000
-    if True:
+    if False:
         antenna_controller.rotate_antenna(start_angle)
         for azimuth_angle in range(start_angle, end_angle + 1, steps):
             antenna_controller.tilt_antenna(start_angle)
@@ -251,12 +223,12 @@ if __name__ == "__main__":
         antenna_controller.disable_antenna_control()
     else:
         angle_collector.collect_angles(
-            millies_per_angle,
+            5000,
             False,
             antenna_controller.get_antenna_rotation(),
             antenna_controller.get_antenna_tilt(),
         )
 
-    angle_collector.save_collected_data()
+    angle_collector.save_collected_data(args.names)
 
     print("Finished")

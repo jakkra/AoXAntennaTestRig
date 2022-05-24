@@ -15,6 +15,7 @@ import tkinter as tk
 from live_plot import LivePlot
 from webcam_window import WebcamWindow
 
+
 class AoATester:
     def __init__(
         self,
