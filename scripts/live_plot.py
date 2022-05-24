@@ -52,10 +52,13 @@ class LivePlot:
                 elevation_gt,
             )
             self.fig.canvas.draw()
-        # Redrawing on every sample will cause delays.
-        # This is a bit of a hack to just draw every 5 samples.
-        self.redraw_counter = self.redraw_counter + 1
-        do_redraw = True if self.redraw_counter % 5 == 0 else False
+            do_redraw = True
+        else:
+            # Redrawing on every sample will cause delays.
+            # This is a bit of a hack to just draw every 5 samples.
+            self.redraw_counter = self.redraw_counter + 1
+            do_redraw = True if self.redraw_counter % 5 == 0 else False
+
         self.tags[tag_id].add_data(azimuth, elevation, do_redraw)
 
         if do_redraw:
@@ -178,7 +181,6 @@ class LivePlot:
             # Allow to input multiple data points at once.
             # Otherwise we would have to redraw for each individual sample which is slow.
             if isinstance(azimuth, list):
-                print("Is a list")
                 self.azimuth = self.azimuth + azimuth
                 self.elevation = self.elevation + elevation
                 azimuth = 0

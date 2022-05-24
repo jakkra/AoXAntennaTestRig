@@ -132,7 +132,7 @@ usage: log_analyzer.py [-h] [--log_dir LOG_DIR] [--remove_90 REMOVE_90]
 ||`--remove_90`||Drop any angles that are +-90, used for testing.|
 ||`--max_angle`|`90`|Drop all angles utside of the range [-max_angle, max_angle].|
 ||`--antenna_upsidedown`||If antenna is upsidedown|
-||`--swap_angles`||If azimuth and elevation should be swapped|
+||`--swap_angles`||If azimuth and elevation should be swapped. For example if antenna rotated 90 degrees.|
 
 ### collect_logs.py
 Collects logs from one or multiple antennas at once. Collected logs can then be analyzed using `python log_analyser.py --log_dir the_path`.

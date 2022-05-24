@@ -76,7 +76,7 @@ if __name__ == "__main__":
                 total_num_packets = total_num_packets + len(data)
                 analyzer.analyze_logs(
                     data,
-                    True,
+                    False,
                     ant_rotation,
                     antenna_tilt,
                     args.remove_90,

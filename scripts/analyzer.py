@@ -63,6 +63,9 @@ class AoATester:
             self.locate_controller.enable_aoa()
         graph = None
         if do_plot:
+            if self.antenna_upside_down:
+                gt_azimuth = -gt_azimuth
+                gt_elevation = -gt_elevation
             graph = LivePlot(self.figsize, gt_azimuth, gt_elevation)
 
         startTime = self.current_milli_time()
@@ -231,7 +234,71 @@ class AoATester:
         plt.gcf().text(
             0.45,
             0.99,
-            "Mean error",
+            "Errors",
+            va="top",
+            fontsize=22,
+        )
+
+        angles_x_values = sorted(list(all_phi.keys()))
+        error_phi_x_values = []
+        error_theta_x_values = []
+        std_error_phi_x_values = []
+        std_error_theta_x_values = []
+        for angle in angles_x_values:
+            error_phi_x_values.append(
+                np.mean(list(map(lambda angle: abs(angle), all_phi[angle])))
+            )
+            std_error_phi_x_values.append(
+                np.std(list(map(lambda angle: abs(angle), all_phi[angle])))
+            )
+            error_theta_x_values.append(
+                np.mean(list(map(lambda angle: abs(angle), all_theta[angle])))
+            )
+            std_error_theta_x_values.append(
+                np.std(list(map(lambda angle: abs(angle), all_theta[angle])))
+            )
+
+        def style_plot(title):
+            plt.title(title)
+            plt.xlabel("Angle", {"color": "white"})
+            plt.ylabel("Errors", {"color": "white"})
+            plt.gca().xaxis.label.set_color("white")
+            plt.gca().yaxis.label.set_color("white")
+            plt.gca().tick_params(axis="x", colors="white")
+            plt.gca().tick_params(axis="y", colors="white")
+            plt.gca().grid(alpha=0.4, color="#212F3D")
+
+        ax = plt.subplot(2, 2, 1)
+        style_plot("Azimuth mean error")
+        ax.plot(angles_x_values, error_phi_x_values)
+        ax = plt.subplot(2, 2, 2)
+        style_plot("Theta mean error")
+        ax.plot(angles_x_values, error_theta_x_values)
+
+        ax = plt.subplot(2, 2, 3)
+        style_plot("Azimuth std error")
+        ax.plot(angles_x_values, std_error_phi_x_values)
+        ax = plt.subplot(2, 2, 4)
+        style_plot("Theta std error")
+        ax.plot(angles_x_values, std_error_theta_x_values)
+
+        img_name = "mean_errors_per_angle.png"
+        self.created_images.append(img_name)
+        plt.savefig(img_name)
+        plt.show(block=False)
+
+    def plot_boxplot(self, all_phi, all_theta):
+        # Plot dist for all rssi per tag
+        plot_num = 1
+        fig = plt.figure(figsize=self.figsize)
+        fig.patch.set_facecolor("#202124")
+        fig.canvas.manager.set_window_title("Mean error per angle")
+        fig.subplots_adjust(wspace=0.15)
+        plt.subplots_adjust(left=0.05, right=0.95, top=0.94, bottom=0.05)
+        plt.gcf().text(
+            0.45,
+            0.99,
+            "Boxplot",
             va="top",
             fontsize=22,
         )
@@ -240,17 +307,12 @@ class AoATester:
         error_phi_x_values = []
         error_theta_x_values = []
         for angle in angles_x_values:
-            error_phi_x_values.append(
-                np.mean(list(map(lambda angle: abs(angle), all_phi[angle])))
-            )
-            error_theta_x_values.append(
-                np.mean(list(map(lambda angle: abs(angle), all_theta[angle])))
-            )
+            error_phi_x_values.append(all_phi[angle])
+            error_theta_x_values.append(all_theta[angle])
 
         def style_plot(title):
             plt.title(title)
             plt.xlabel("Angle", {"color": "white"})
-            plt.ylabel("Mean error", {"color": "white"})
             plt.gca().xaxis.label.set_color("white")
             plt.gca().yaxis.label.set_color("white")
             plt.gca().tick_params(axis="x", colors="white")
@@ -259,11 +321,15 @@ class AoATester:
 
         ax = plt.subplot(2, 1, 1)
         style_plot("Azimuth")
-        ax.plot(angles_x_values, error_phi_x_values)
+        ax.boxplot(error_phi_x_values)
+        plt.xticks(list(range(1, len(angles_x_values) + 1)), angles_x_values)
+
         ax = plt.subplot(2, 1, 2)
         style_plot("Theta")
-        ax.plot(angles_x_values, error_theta_x_values)
-        img_name = "mean_errors_per_angle.png"
+        ax.boxplot(error_theta_x_values)
+        plt.xticks(list(range(1, len(angles_x_values) + 1)), angles_x_values)
+
+        img_name = "boxplot_errors_per_angle.png"
         self.created_images.append(img_name)
         plt.savefig(img_name)
         plt.show(block=False)
@@ -439,9 +505,11 @@ class AoATester:
         self.created_images.append(img_name)
         plt.savefig(img_name)
         plt.show(block=False)
+
         if distribution_plot:
             self.plot_rssi_per_tag(all_rssi)
             self.plot_mean_err_angle(errors_per_angle_phi, errors_per_angle_theta)
+            self.plot_boxplot(errors_per_angle_phi, errors_per_angle_theta)
 
         # Plot CDF for all tags combined
         fig = plt.figure(figsize=self.figsize)
